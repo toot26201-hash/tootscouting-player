@@ -4,7 +4,7 @@ import sqlite3
 # 1. إعدادات الصفحة
 st.set_page_config(layout="wide", page_title="TootScouting Media Center")
 
-# 2. إنشاء وإعداد قاعدة البيانات المطورة لدعم اسم اللاعب
+# 2. إنشاء وإعداد قاعدة البيانات المطورة
 def init_db():
     conn = sqlite3.connect("tootscouting_players_media.db")
     cursor = conn.cursor()
@@ -22,7 +22,7 @@ def init_db():
 
 init_db()
 
-# دالة لحفظ فيديو جديد مع ربطه باللاعب والقسم
+# دالة لحفظ فيديو جديد
 def add_cloudinary_video(player_name, title, category, url):
     conn = sqlite3.connect("tootscouting_players_media.db")
     cursor = conn.cursor()
@@ -31,7 +31,7 @@ def add_cloudinary_video(player_name, title, category, url):
     conn.commit()
     conn.close()
 
-# دالة لجلب قائمة اللاعبين المتاحين في قاعدة البيانات بدون تكرار
+# دالة لجلب قائمة اللاعبين المتاحين
 def get_all_players():
     conn = sqlite3.connect("tootscouting_players_media.db")
     cursor = conn.cursor()
@@ -40,7 +40,7 @@ def get_all_players():
     conn.close()
     return [r[0] for r in rows]
 
-# دالة لجلب الفيديوهات بناءً على اللاعب النشط والقسم النشط
+# دالة لجلب الفيديوهات بناءً على اللاعب والقسم
 def get_videos_by_player_and_category(player_name, category):
     conn = sqlite3.connect("tootscouting_players_media.db")
     cursor = conn.cursor()
@@ -53,41 +53,16 @@ def get_videos_by_player_and_category(player_name, category):
 st.title("⚽ مركز مشغل ميديا اللاعبين - TootScouting")
 st.markdown("---")
 
-tab1, tab2 = st.tabs(["📺 مشغل الميديا والتحليل", "🔗 لوحة تحكم المحلل (إضافة لاعبين وفيديوهات)"])
+# إنشاء التبويبات مع حماية تبويب المحلل
+tab1, tab2 = st.tabs(["📺 مشغل الميديا والتحليل", "🔒 لوحة تحكم المحلل الخاصة"])
 
-# ----------------- التبويب الثاني: لوحة تحكم المحلل (إضافة الفيديوهات واللاعبين) -----------------
-with tab2:
-    st.subheader("⚙️ رفع وإضافة فيديو جديد للاعب")
-    
-    with st.form("cloudinary_form", clear_on_submit=True):
-        # خانة اسم اللاعب (لو الاسم جديد هيتضاف في القائمة تلقائي، ولو موجود هيتجمع تحته)
-        player_name = st.text_input("اسم اللاعب (مثال: إياد العسيري):")
-        
-        video_title = st.text_input("عنوان الفيديو الحركي (مثال: تمريرة لعمق المهاجم):")
-        
-        video_category = st.selectbox("اختر قسم الزرار المناسب للفيديو:", [
-            "تمريرات", "دريبل", "صراعات هوائية", "صراعات أرضية", "ضغط", "عرضيات", "كورنر"
-        ])
-        
-        video_url = st.text_input("رابط الفيديو (سواء Embed أو رابط مباشر ينتهي بـ .mp4):")
-        
-        submit_btn = st.form_submit_button("حفظ المقطع في ملف اللاعب ✨")
-        
-        if submit_btn:
-            if player_name and video_title and video_url:
-                add_cloudinary_video(player_name, video_title, video_category, video_url)
-                st.success(f"✅ تم حفظ الفيديو بنجاح وربطه باللاعب ({player_name}) في قسم ({video_category})!")
-            else:
-                st.error("❌ من فضلك أكمل جميع الخانات (اسم اللاعب، عنوان الفيديو، والرابط).")
-
-# ----------------- التبويب الأول: مشغل الميديا المفلتر باللاعبين والأزرار -----------------
+# ----------------- التبويب الأول: واجهة المستخدم أو العميل (مشاهدة فقط) -----------------
 with tab1:
-    # جلب قائمة اللاعبين المتاحين أونلاين
     available_players = get_all_players()
     
     if available_players:
-        # 1. قائمة منسدلة لاختيار اللاعب أولاً في أعلى الصفحة
-        selected_player = st.selectbox("🎯 اختر اللاعب المراد عرض تحليله:", available_players)
+        # قائمة منسدلة واضحة للمستخدم لاختيار اسم اللاعب
+        selected_player = st.selectbox("🎯 اختر اللاعب المراد عرض تحليله وفيديوهاته:", available_players)
         
         # إدارة الـ Session State للحفاظ على الزرار النشط والفيديو الحالي
         if "active_filter" not in st.session_state:
@@ -99,7 +74,7 @@ with tab1:
         if "selected_video_title" not in st.session_state:
             st.session_state.selected_video_title = ""
 
-        # دالة لتحديث الفلتر وتصفير المشغل عند الانتقال بين الأزرار الـ 7
+        # دالة لتحديث الفلتر عند الانتقال بين الأزرار الـ 7
         def change_filter(category_name):
             st.session_state.active_filter = category_name
             st.session_state.selected_video_url = None
@@ -121,9 +96,9 @@ with tab1:
         
         for col, (label, tag) in zip(cols, categories_buttons):
             if st.session_state.active_filter == tag:
-                col.button(label, key=f"filter_{tag}", use_container_width=True, type="primary")
+                col.button(label, key=f"user_filter_{tag}", use_container_width=True, type="primary")
             else:
-                col.button(label, key=f"filter_{tag}", use_container_width=True, on_click=change_filter, args=(tag,))
+                col.button(label, key=f"user_filter_{tag}", use_container_width=True, on_click=change_filter, args=(tag,))
                 
         st.markdown("---")
         
@@ -142,24 +117,57 @@ with tab1:
                 st.subheader(f"🎬 {st.session_state.selected_video_title}")
                 
                 url = st.session_state.selected_video_url
-                # ذكاء اصطناعي برمجياً: تشغيل الرابط سواء كان Embed iFrame أو رابط مباشر .mp4 تلقائياً
+                # تشغيل الرابط سواء كان Embed iFrame أو رابط مباشر .mp4 تلقائياً
                 if "player.cloudinary.com" in url or "iframe" in url:
                     st.components.v1.iframe(url, height=520, scrolling=False)
                 else:
                     st.video(url)
                 
             with list_col:
-                st.subheader(f"📋 مقاطع الفيديو ({len(current_playlist)})")
+                st.subheader(f"📋 مقاطع الفيديو المتاحة")
+                st.caption("اضغط على المقطع لتشغيله:")
                 
                 for vid in current_playlist:
                     if vid["video_url"] == st.session_state.selected_video_url:
                         st.success(f"▶️ {vid['title']}")
                     else:
-                        if st.button(f"📹 {vid['title']}", key=f"vid_btn_{vid['id']}", use_container_width=True):
+                        if st.button(f"📹 {vid['title']}", key=f"user_vid_btn_{vid['id']}", use_container_width=True):
                             st.session_state.selected_video_url = vid["video_url"]
                             st.session_state.selected_video_title = vid["title"]
                             st.rerun()
         else:
             st.info(f"📂 لا توجد فيديوهات مضافة للاعب **{selected_player}** في قسم ({st.session_state.active_filter}) حالياً.")
     else:
-        st.info("📂 المنصة فارغة حالياً. توجه لتبويب الإضافة لرفع أول لاعب وحالاته من Cloudinary.")
+        st.info("📂 مرحباً بك في منصة توت سكاوتنج. سيتم عرض الفيديوهات هنا بمجرد إضافة المحلل للحالات.")
+
+# ----------------- التبويب الثاني: لوحة تحكم المحلل (محمية بكلمة سر) -----------------
+with tab2:
+    st.subheader("🔑 تسجيل الدخول للوحة التحكم")
+    # يمكنك تغيير كلمة السر "TootScouting2026" لأي كلمة تفضلها
+    password = st.text_input("أدخل كلمة المرور الخاصة بالمحلل لرؤية نموذج الرفع:", type="password")
+    
+    if password == "TootScouting2026":
+        st.success("🔓 تم تأكيد الهوية بنجاح! يمكنك الآن إضافة بيانات اللاعبين.")
+        st.markdown("---")
+        
+        with st.form("admin_cloudinary_form", clear_on_submit=True):
+            player_name = st.text_input("اسم اللاعب (مثال: إياد العسيري):")
+            video_title = st.text_input("عنوان الفيديو الحركي (مثال: تمريرة لعمق المهاجم):")
+            
+            video_category = st.selectbox("اختر قسم الزرار المناسب للفيديو:", [
+                "تمريرات", "دريبل", "صراعات هوائية", "صراعات أرضية", "ضغط", "عرضيات", "كورنر"
+            ])
+            
+            video_url = st.text_input("رابط الفيديو من Cloudinary (Embed أو .mp4):")
+            
+            submit_btn = st.form_submit_button("حفظ المقطع في ملف اللاعب ✨")
+            
+            if submit_btn:
+                if player_name and video_title and video_url:
+                    add_cloudinary_video(player_name, video_title, video_category, video_url)
+                    st.success(f"✅ تم حفظ الفيديو بنجاح وربطه باللاعب ({player_name})!")
+                    st.rerun()
+                else:
+                    st.error("❌ من فضلك أكمل جميع الخانات.")
+    elif password != "":
+        st.error("❌ كلمة المرور غير صحيحة! لا يمكنك التعديل على محتوى المنصة.")
