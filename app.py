@@ -1,5 +1,6 @@
 import streamlit as st
 import sqlite3
+import re
 
 # 1. Page Configuration
 st.set_page_config(layout="wide", page_title="TootScouting Media Center")
@@ -30,6 +31,25 @@ def init_db():
     conn.close()
 
 init_db()
+
+# Smart function to convert Google Drive sharing links to direct video streaming links
+def convert_google_drive_link(url):
+    if "drive.google.com" in url:
+        match = re.search(r'/d/([^/]+)', url)
+        if match:
+            file_id = match.group(1)
+            return f"https://docs.google.com/uc?export=download&id={file_id}"
+    return url
+
+# Smart function to process Vimeo URLs into player embed links
+def process_vimeo_link(url):
+    if "vimeo.com" in url:
+        # Extract Vimeo Video ID using regex
+        match = re.search(r'vimeo\.com/(\d+)', url)
+        if match:
+            video_id = match.group(1)
+            return f"https://player.vimeo.com/video/{video_id}"
+    return url
 
 # Function to add video smartly
 def add_video_smart(player_name, player_image, player_club, player_age, title, category, url):
@@ -63,7 +83,7 @@ def get_all_players_profiles():
 # Function to get videos by player and category
 def get_videos_by_player_and_category(player_name, category):
     conn = sqlite3.connect("tootscouting_relational_media.db")
-    cursor = conn.cursor() # Here is the fix!
+    cursor = conn.cursor()
     cursor.execute("SELECT id, title, video_url FROM videos WHERE player_name = ? AND category = ?", (player_name, category))
     rows = cursor.fetchall()
     conn.close()
@@ -114,6 +134,7 @@ with tab1:
             col_idx = idx % 4
             with card_cols[col_idx]:
                 with st.container(border=True):
+                    # Perfect Circular Image Fix
                     player_img_url = player["image"] if player["image"] else "https://via.placeholder.com/150"
                     st.markdown(
                         f"""
@@ -181,11 +202,19 @@ with tab1:
             
             with player_col:
                 st.subheader(f"🎬 Current Clip: {st.session_state.selected_video_title}")
-                url = st.session_state.selected_video_url
-                if "player.cloudinary.com" in url or "iframe" in url:
-                    st.components.v1.iframe(url, height=520, scrolling=False)
+                raw_url = st.session_state.selected_video_url
+                
+                # Smart Multi-Provider Processing Route
+                if "vimeo.com" in raw_url:
+                    vimeo_embed = process_vimeo_link(raw_url)
+                    st.components.v1.iframe(vimeo_embed, height=520, scrolling=False)
+                elif "drive.google.com" in raw_url:
+                    drive_direct = convert_google_drive_link(raw_url)
+                    st.video(drive_direct)
+                elif "player.cloudinary.com" in raw_url or "iframe" in raw_url:
+                    st.components.v1.iframe(raw_url, height=520, scrolling=False)
                 else:
-                    st.video(url)
+                    st.video(raw_url)
                 
             with list_col:
                 st.subheader(f"📋 Video Clips")
@@ -220,7 +249,7 @@ with tab2:
         with st.form("fast_video_form", clear_on_submit=True):
             v_title = st.text_input("Clip Title / Event Action (e.g., Deep Pass 1):")
             v_category = st.selectbox("Assign to Technical Category:", ["Passes", "Dribbles", "Aerial Duels", "Ground Duels", "Pressing", "Crosses", "Corners"])
-            v_url = st.text_input("Cloudinary Video URL:")
+            v_url = st.text_input("Video URL (Vimeo, Google Drive, or Cloudinary):")
             
             submit_video = st.form_submit_button("🚀 Upload Clip & Keep Player Profile Locked")
             
