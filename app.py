@@ -32,19 +32,20 @@ def init_db():
 
 init_db()
 
-# Smart function to convert Google Drive sharing links to direct video streaming links
-def convert_google_drive_link(url):
+# Smart function to process Google Drive links for direct iframe preview
+def process_google_drive_link(url):
     if "drive.google.com" in url:
+        # Extract File ID
         match = re.search(r'/d/([^/]+)', url)
         if match:
             file_id = match.group(1)
-            return f"https://docs.google.com/uc?export=download&id={file_id}"
+            # Return preview URL for iFrame embedding
+            return f"https://drive.google.com/file/d/{file_id}/preview"
     return url
 
 # Smart function to process Vimeo URLs into player embed links
 def process_vimeo_link(url):
     if "vimeo.com" in url:
-        # Extract Vimeo Video ID using regex
         match = re.search(r'vimeo\.com/(\d+)', url)
         if match:
             video_id = match.group(1)
@@ -105,7 +106,6 @@ def delete_video_by_id(video_id):
     cursor.execute("DELETE FROM videos WHERE id = ?", (video_id,))
     conn.commit()
     
-    # Clean players with no attached videos
     cursor.execute('''
         DELETE FROM players WHERE player_name NOT IN (SELECT DISTINCT player_name FROM videos)
     ''')
@@ -134,7 +134,6 @@ with tab1:
             col_idx = idx % 4
             with card_cols[col_idx]:
                 with st.container(border=True):
-                    # Perfect Circular Image Fix
                     player_img_url = player["image"] if player["image"] else "https://via.placeholder.com/150"
                     st.markdown(
                         f"""
@@ -204,13 +203,13 @@ with tab1:
                 st.subheader(f"🎬 Current Clip: {st.session_state.selected_video_title}")
                 raw_url = st.session_state.selected_video_url
                 
-                # Smart Multi-Provider Processing Route
-                if "vimeo.com" in raw_url:
+                # Multi-Provider Display Handler
+                if "drive.google.com" in raw_url:
+                    drive_embed = process_google_drive_link(raw_url)
+                    st.components.v1.iframe(drive_embed, height=520, scrolling=False)
+                elif "vimeo.com" in raw_url:
                     vimeo_embed = process_vimeo_link(raw_url)
                     st.components.v1.iframe(vimeo_embed, height=520, scrolling=False)
-                elif "drive.google.com" in raw_url:
-                    drive_direct = convert_google_drive_link(raw_url)
-                    st.video(drive_direct)
                 elif "player.cloudinary.com" in raw_url or "iframe" in raw_url:
                     st.components.v1.iframe(raw_url, height=520, scrolling=False)
                 else:
@@ -249,7 +248,7 @@ with tab2:
         with st.form("fast_video_form", clear_on_submit=True):
             v_title = st.text_input("Clip Title / Event Action (e.g., Deep Pass 1):")
             v_category = st.selectbox("Assign to Technical Category:", ["Passes", "Dribbles", "Aerial Duels", "Ground Duels", "Pressing", "Crosses", "Corners"])
-            v_url = st.text_input("Video URL (Vimeo, Google Drive, or Cloudinary):")
+            v_url = st.text_input("Video URL (Google Drive, Vimeo, or Cloudinary):")
             
             submit_video = st.form_submit_button("🚀 Upload Clip & Keep Player Profile Locked")
             
