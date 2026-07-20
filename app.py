@@ -4,11 +4,10 @@ import sqlite3
 # 1. Page Configuration
 st.set_page_config(layout="wide", page_title="TootScouting Media Center")
 
-# 2. Database Initialization with Two Separated Tables (To Prevent Duplication)
+# 2. Database Initialization
 def init_db():
     conn = sqlite3.connect("tootscouting_relational_media.db")
     cursor = conn.cursor()
-    # Table 1: Stores unique player profiles
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS players (
             player_name TEXT PRIMARY KEY,
@@ -17,7 +16,6 @@ def init_db():
             player_age INTEGER
         )
     ''')
-    # Table 2: Stores video clips linked to the player
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS videos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,12 +31,10 @@ def init_db():
 
 init_db()
 
-# Smart Function to add video and handle player creation/update automatically
+# Function to add video smartly
 def add_video_smart(player_name, player_image, player_club, player_age, title, category, url):
     conn = sqlite3.connect("tootscouting_relational_media.db")
     cursor = conn.cursor()
-    
-    # Check if the player already exists or update their profile data
     cursor.execute('''
         INSERT INTO players (player_name, player_image, player_club, player_age)
         VALUES (?, ?, ?, ?)
@@ -48,16 +44,14 @@ def add_video_smart(player_name, player_image, player_club, player_age, title, c
             player_age=excluded.player_age
     ''', (player_name.strip(), player_image.strip(), player_club.strip(), int(player_age)))
     
-    # Insert the video clip
     cursor.execute('''
         INSERT INTO videos (player_name, title, category, video_url) 
         VALUES (?, ?, ?, ?)
     ''', (player_name.strip(), title, category, url))
-    
     conn.commit()
     conn.close()
 
-# Function to get unique player profiles for the cards layout
+# Function to get all players profiles
 def get_all_players_profiles():
     conn = sqlite3.connect("tootscouting_relational_media.db")
     cursor = conn.cursor()
@@ -69,11 +63,36 @@ def get_all_players_profiles():
 # Function to get videos by player and category
 def get_videos_by_player_and_category(player_name, category):
     conn = sqlite3.connect("tootscouting_relational_media.db")
-    cursor = conn.cursor()
+    cursor = cursor.cursor()
     cursor.execute("SELECT id, title, video_url FROM videos WHERE player_name = ? AND category = ?", (player_name, category))
     rows = cursor.fetchall()
     conn.close()
     return [{"id": r[0], "title": r[1], "video_url": r[2]} for r in rows]
+
+# Function to get ALL videos for management deletion
+def get_all_videos_raw():
+    conn = sqlite3.connect("tootscouting_relational_media.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, player_name, title, category FROM videos ORDER BY id DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+# Function to delete a video by ID
+def delete_video_by_id(video_id):
+    conn = sqlite3.connect("tootscouting_relational_media.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM videos WHERE id = ?", (video_id,))
+    conn.commit()
+    
+    # Optional cleanup: if a player has 0 videos left, remove their card too
+    cursor.execute("SELECT COUNT(*) FROM videos")
+    # Clean players with no attached videos
+    cursor.execute('''
+        DELETE FROM players WHERE player_name NOT IN (SELECT DISTINCT player_name FROM videos)
+    ''')
+    conn.commit()
+    conn.close()
 
 # --- TootScouting UI Layout ---
 st.title("⚽ Scouting & Video Analysis Center - TootScouting")
@@ -97,7 +116,6 @@ with tab1:
             col_idx = idx % 4
             with card_cols[col_idx]:
                 with st.container(border=True):
-                    # Perfect Circular Image Fix
                     player_img_url = player["image"] if player["image"] else "https://via.placeholder.com/150"
                     st.markdown(
                         f"""
@@ -120,6 +138,12 @@ with tab1:
                         st.rerun()
 
         st.markdown("---")
+        
+        # Guard clause in case a deletion leaves the selected player with no data
+        current_names = [p["name"] for p in players_list]
+        if st.session_state.selected_player_name not in current_names:
+            st.session_state.selected_player_name = players_list[0]["name"]
+
         st.write(f"## 📊 Technical Performance Dashboard: **{st.session_state.selected_player_name}**")
         
         if "active_filter" not in st.session_state:
@@ -181,7 +205,7 @@ with tab1:
     else:
         st.info("📂 Welcome to TootScouting. Profiles will appear here once the analyst uploads the data.")
 
-# ----------------- Tab 2: Analyst Control Panel -----------------
+# ----------------- Tab 2: Analyst Control Panel (With Video Deletion Management) -----------------
 with tab2:
     st.subheader("🔑 Secure Analyst Login")
     password = st.text_input("Enter password to access the upload studio:", type="password")
@@ -190,14 +214,12 @@ with tab2:
         st.success("🔓 Access Granted!")
         st.markdown("---")
         
-        st.write("### 📇 1. Lock Player Profile Details:")
+        # Section A: Upload New Videos
+        st.write("### 📥 1. Upload Video Clips Studio")
         fast_name = st.text_input("Player Full Name (e.g., Iyad Al-Asiri):", key="fast_p_name")
         fast_image = st.text_input("Player Profile Image URL (Cloudinary Link):", key="fast_p_img")
         fast_club = st.text_input("Current Club Name:", key="fast_p_club")
         fast_age = st.number_input("Player Age:", min_value=12, max_value=45, value=20, key="fast_p_age")
-        
-        st.markdown("---")
-        st.write("### 🎬 2. Upload Video Clips (Player info above remains locked):")
         
         with st.form("fast_video_form", clear_on_submit=True):
             v_title = st.text_input("Clip Title / Event Action (e.g., Deep Pass 1):")
@@ -208,8 +230,40 @@ with tab2:
             
             if submit_video:
                 if fast_name and v_title and v_url:
-                    # Smart insert fixes the duplicate card issue completely
                     add_video_smart(fast_name, fast_image, fast_club, fast_age, v_title, v_category, v_url)
                     st.toast(f"✅ Clip successfully added for {fast_name}!", icon="🔥")
+                    st.rerun()
                 else:
-                    st.error("❌ Action Required: Ensure Player Name is filled above, and both Clip Title and URL are filled below.")
+                    st.error("❌ Action Required: Fill all video form details.")
+                    
+        st.markdown("---")
+        
+        # Section B: Video Deletion Management Table
+        st.write("### 🗑️ 2. Manage & Delete Uploaded Video Clips")
+        all_videos = get_all_videos_raw()
+        
+        if all_videos:
+            # Table Header
+            head_cols = st.columns([1, 2, 3, 2, 2])
+            head_cols[0].markdown("**ID**")
+            head_cols[1].markdown("**Player Name**")
+            head_cols[2].markdown("**Clip Title**")
+            head_cols[3].markdown("**Category**")
+            head_cols[4].markdown("**Action**")
+            st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
+            
+            # Table Rows
+            for vid_id, p_name, title, cat in all_videos:
+                row_cols = st.columns([1, 2, 3, 2, 2])
+                row_cols[0].write(f"#{vid_id}")
+                row_cols[1].write(p_name)
+                row_cols[2].write(title)
+                row_cols[3].write(cat)
+                
+                # Delete Button for each specific clip
+                if row_cols[4].button("❌ Delete", key=f"del_{vid_id}", type="secondary", use_container_width=True):
+                    delete_video_by_id(vid_id)
+                    st.toast(f"🗑️ Clip #{vid_id} deleted successfully!", icon="⚠️")
+                    st.rerun()
+        else:
+            st.info("📂 Database is currently empty. No videos to manage.")
