@@ -35,11 +35,9 @@ init_db()
 # Smart function to process Google Drive links for direct iframe preview
 def process_google_drive_link(url):
     if "drive.google.com" in url:
-        # Extract File ID
         match = re.search(r'/d/([^/]+)', url)
         if match:
             file_id = match.group(1)
-            # Return preview URL for iFrame embedding
             return f"https://drive.google.com/file/d/{file_id}/preview"
     return url
 
@@ -113,17 +111,17 @@ def delete_video_by_id(video_id):
     conn.close()
 
 # --- TootScouting UI Layout ---
-st.title("⚽ Scouting & Video Analysis Center - TootScouting")
+st.title("Scouting & Video Analysis Center - TootScouting")
 st.markdown("---")
 
-tab1, tab2 = st.tabs(["📺 Player Showcase & Analysis", "🔒 Analyst Control Panel"])
+tab1, tab2 = st.tabs(["Player Showcase & Analysis", "Analyst Control Panel"])
 
 # ----------------- Tab 1: User / Client Interface -----------------
 with tab1:
     players_list = get_all_players_profiles()
     
     if players_list:
-        st.subheader("🎯 Available Player Profiles:")
+        st.subheader("Available Player Profiles:")
         num_columns = min(len(players_list), 4)
         card_cols = st.columns(num_columns) if num_columns > 0 else []
         
@@ -145,10 +143,10 @@ with tab1:
                     )
                     
                     st.markdown(f"<h3 style='text-align: center; margin-bottom: 5px;'>{player['name']}</h3>", unsafe_allow_html=True)
-                    st.markdown(f"<p style='text-align: center; margin-bottom: 2px;'>🏃‍♂️ <b>Club:</b> {player['club']}</p>", unsafe_allow_html=True)
-                    st.markdown(f"<p style='text-align: center; margin-bottom: 15px;'>🎂 <b>Age:</b> {player['age']} Y/O</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='text-align: center; margin-bottom: 2px;'><b>Club:</b> {player['club']}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='text-align: center; margin-bottom: 15px;'><b>Age:</b> {player['age']} Y/O</p>", unsafe_allow_html=True)
                     
-                    if st.button(f"🔎 View Analysis", key=f"select_{player['name']}", use_container_width=True):
+                    if st.button(f"View Analysis", key=f"select_{player['name']}", use_container_width=True):
                         st.session_state.selected_player_name = player["name"]
                         st.session_state.active_filter = "Passes"
                         st.session_state.selected_video_url = None
@@ -161,7 +159,7 @@ with tab1:
         if st.session_state.selected_player_name not in current_names:
             st.session_state.selected_player_name = players_list[0]["name"]
 
-        st.write(f"## 📊 Technical Performance Dashboard: **{st.session_state.selected_player_name}**")
+        st.write(f"## Technical Performance Dashboard: **{st.session_state.selected_player_name}**")
         
         if "active_filter" not in st.session_state:
             st.session_state.active_filter = "Passes"
@@ -177,9 +175,13 @@ with tab1:
 
         cols = st.columns(7)
         categories_buttons = [
-            ("🔄 Passes", "Passes"), ("⚡ Dribbles", "Dribbles"), 
-            ("🪂 Aerial Duels", "Aerial Duels"), ("🏃‍♂️ Ground Duels", "Ground Duels"), 
-            ("🛑 Pressing", "Pressing"), ("📐 Crosses", "Crosses"), ("🚩 Corners", "Corners")
+            ("Passes", "Passes"), 
+            ("Dribbles", "Dribbles"), 
+            ("Aerial Duels", "Aerial Duels"), 
+            ("Ground Duels", "Ground Duels"), 
+            ("Pressing", "Pressing"), 
+            ("Crosses", "Crosses"), 
+            ("Corners", "Corners")
         ]
         
         for col, (label, tag) in zip(cols, categories_buttons):
@@ -200,7 +202,7 @@ with tab1:
             player_col, list_col = st.columns([3, 1])
             
             with player_col:
-                st.subheader(f"🎬 Current Clip: {st.session_state.selected_video_title}")
+                st.subheader(f"Current Clip: {st.session_state.selected_video_title}")
                 raw_url = st.session_state.selected_video_url
                 
                 # Multi-Provider Display Handler
@@ -216,32 +218,32 @@ with tab1:
                     st.video(raw_url)
                 
             with list_col:
-                st.subheader(f"📋 Video Clips")
+                st.subheader("Video Clips")
                 for vid in current_playlist:
                     if vid["video_url"] == st.session_state.selected_video_url:
-                        st.success(f"▶️ {vid['title']}")
+                        st.success(f"PLAYING: {vid['title']}")
                     else:
-                        if st.button(f"📹 {vid['title']}", key=f"user_vid_btn_{vid['id']}", use_container_width=True):
+                        if st.button(f"{vid['title']}", key=f"user_vid_btn_{vid['id']}", use_container_width=True):
                             st.session_state.selected_video_url = vid["video_url"]
                             st.session_state.selected_video_title = vid["title"]
                             st.rerun()
         else:
-            st.info(f"📂 No video clips available under ({st.session_state.active_filter}) for this player yet.")
+            st.info(f"No video clips available under ({st.session_state.active_filter}) for this player yet.")
     else:
-        st.info("📂 Welcome to TootScouting. Profiles will appear here once the analyst uploads the data.")
+        st.info("Welcome to TootScouting. Profiles will appear here once the analyst uploads the data.")
 
 # ----------------- Tab 2: Analyst Control Panel -----------------
 with tab2:
-    st.subheader("🔑 Secure Analyst Login")
+    st.subheader("Secure Analyst Login")
     password = st.text_input("Enter password to access the upload studio:", type="password")
     
     if password == "TootScouting2026":
-        st.success("🔓 Access Granted!")
+        st.success("Access Granted!")
         st.markdown("---")
         
-        st.write("### 📥 1. Upload Video Clips Studio")
+        st.write("### 1. Upload Video Clips Studio")
         fast_name = st.text_input("Player Full Name (e.g., Iyad Al-Asiri):", key="fast_p_name")
-        fast_image = st.text_input("Player Profile Image URL (Cloudinary Link):", key="fast_p_img")
+        fast_image = st.text_input("Player Profile Image URL:", key="fast_p_img")
         fast_club = st.text_input("Current Club Name:", key="fast_p_club")
         fast_age = st.number_input("Player Age:", min_value=12, max_value=45, value=20, key="fast_p_age")
         
@@ -250,19 +252,19 @@ with tab2:
             v_category = st.selectbox("Assign to Technical Category:", ["Passes", "Dribbles", "Aerial Duels", "Ground Duels", "Pressing", "Crosses", "Corners"])
             v_url = st.text_input("Video URL (Google Drive, Vimeo, or Cloudinary):")
             
-            submit_video = st.form_submit_button("🚀 Upload Clip & Keep Player Profile Locked")
+            submit_video = st.form_submit_button("Upload Clip & Keep Player Profile Locked")
             
             if submit_video:
                 if fast_name and v_title and v_url:
                     add_video_smart(fast_name, fast_image, fast_club, fast_age, v_title, v_category, v_url)
-                    st.toast(f"✅ Clip successfully added for {fast_name}!", icon="🔥")
+                    st.toast(f"Clip successfully added for {fast_name}!")
                     st.rerun()
                 else:
-                    st.error("❌ Action Required: Fill all video form details.")
+                    st.error("Action Required: Fill all video form details.")
                     
         st.markdown("---")
         
-        st.write("### 🗑️ 2. Manage & Delete Uploaded Video Clips")
+        st.write("### 2. Manage & Delete Uploaded Video Clips")
         all_videos = get_all_videos_raw()
         
         if all_videos:
@@ -281,9 +283,9 @@ with tab2:
                 row_cols[2].write(title)
                 row_cols[3].write(cat)
                 
-                if row_cols[4].button("❌ Delete", key=f"del_{vid_id}", type="secondary", use_container_width=True):
+                if row_cols[4].button("Delete", key=f"del_{vid_id}", type="secondary", use_container_width=True):
                     delete_video_by_id(vid_id)
-                    st.toast(f"🗑️ Clip #{vid_id} deleted successfully!", icon="⚠️")
+                    st.toast(f"Clip #{vid_id} deleted successfully!")
                     st.rerun()
         else:
-            st.info("📂 Database is currently empty. No videos to manage.")
+            st.info("Database is currently empty. No videos to manage.")
