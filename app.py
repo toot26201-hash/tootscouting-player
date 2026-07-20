@@ -63,7 +63,7 @@ def get_all_players_profiles():
 # Function to get videos by player and category
 def get_videos_by_player_and_category(player_name, category):
     conn = sqlite3.connect("tootscouting_relational_media.db")
-    cursor = cursor.cursor()
+    cursor = conn.cursor() # Here is the fix!
     cursor.execute("SELECT id, title, video_url FROM videos WHERE player_name = ? AND category = ?", (player_name, category))
     rows = cursor.fetchall()
     conn.close()
@@ -85,8 +85,6 @@ def delete_video_by_id(video_id):
     cursor.execute("DELETE FROM videos WHERE id = ?", (video_id,))
     conn.commit()
     
-    # Optional cleanup: if a player has 0 videos left, remove their card too
-    cursor.execute("SELECT COUNT(*) FROM videos")
     # Clean players with no attached videos
     cursor.execute('''
         DELETE FROM players WHERE player_name NOT IN (SELECT DISTINCT player_name FROM videos)
@@ -139,7 +137,6 @@ with tab1:
 
         st.markdown("---")
         
-        # Guard clause in case a deletion leaves the selected player with no data
         current_names = [p["name"] for p in players_list]
         if st.session_state.selected_player_name not in current_names:
             st.session_state.selected_player_name = players_list[0]["name"]
@@ -205,7 +202,7 @@ with tab1:
     else:
         st.info("📂 Welcome to TootScouting. Profiles will appear here once the analyst uploads the data.")
 
-# ----------------- Tab 2: Analyst Control Panel (With Video Deletion Management) -----------------
+# ----------------- Tab 2: Analyst Control Panel -----------------
 with tab2:
     st.subheader("🔑 Secure Analyst Login")
     password = st.text_input("Enter password to access the upload studio:", type="password")
@@ -214,7 +211,6 @@ with tab2:
         st.success("🔓 Access Granted!")
         st.markdown("---")
         
-        # Section A: Upload New Videos
         st.write("### 📥 1. Upload Video Clips Studio")
         fast_name = st.text_input("Player Full Name (e.g., Iyad Al-Asiri):", key="fast_p_name")
         fast_image = st.text_input("Player Profile Image URL (Cloudinary Link):", key="fast_p_img")
@@ -238,12 +234,10 @@ with tab2:
                     
         st.markdown("---")
         
-        # Section B: Video Deletion Management Table
         st.write("### 🗑️ 2. Manage & Delete Uploaded Video Clips")
         all_videos = get_all_videos_raw()
         
         if all_videos:
-            # Table Header
             head_cols = st.columns([1, 2, 3, 2, 2])
             head_cols[0].markdown("**ID**")
             head_cols[1].markdown("**Player Name**")
@@ -252,7 +246,6 @@ with tab2:
             head_cols[4].markdown("**Action**")
             st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
             
-            # Table Rows
             for vid_id, p_name, title, cat in all_videos:
                 row_cols = st.columns([1, 2, 3, 2, 2])
                 row_cols[0].write(f"#{vid_id}")
@@ -260,7 +253,6 @@ with tab2:
                 row_cols[2].write(title)
                 row_cols[3].write(cat)
                 
-                # Delete Button for each specific clip
                 if row_cols[4].button("❌ Delete", key=f"del_{vid_id}", type="secondary", use_container_width=True):
                     delete_video_by_id(vid_id)
                     st.toast(f"🗑️ Clip #{vid_id} deleted successfully!", icon="⚠️")
