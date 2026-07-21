@@ -188,8 +188,8 @@ with tab1:
             st.session_state.selected_video_url = None
             st.session_state.selected_video_title = ""
 
-        # Updated to 8 Category Buttons (Added Shots)
-        cols = st.columns(8)
+        # Updated to 9 Category Buttons (Added Miscontrol)
+        cols = st.columns(9)
         categories_buttons = [
             ("Passes", "Passes"), 
             ("Shots", "Shots"),
@@ -198,7 +198,8 @@ with tab1:
             ("Ground Duels", "Ground Duels"), 
             ("Aerial Duels", "Aerial Duels"), 
             ("Pressing", "Pressing"), 
-            ("Corners", "Corners")
+            ("Corners", "Corners"),
+            ("Miscontrol", "Miscontrol")
         ]
         
         for col, (label, tag) in zip(cols, categories_buttons):
@@ -265,9 +266,9 @@ with tab2:
         fast_sofa = st.text_input("SofaScore Profile Link (Optional):", key="fast_p_sofa")
         
         with st.form("fast_video_form", clear_on_submit=True):
-            v_title = st.text_input("Clip Title / Event Action (e.g., Long Range Shot 1):")
+            v_title = st.text_input("Clip Title / Event Action (e.g., Miscontrol 1):")
             
-            # Updated Dropdown Menu with "Shots"
+            # Updated Dropdown Menu with "Miscontrol"
             v_category = st.selectbox("Assign to Technical Category:", [
                 "Passes", 
                 "Shots", 
@@ -276,7 +277,8 @@ with tab2:
                 "Ground Duels", 
                 "Aerial Duels", 
                 "Pressing", 
-                "Corners"
+                "Corners",
+                "Miscontrol"
             ])
             
             v_url = st.text_input("Video URL (Google Drive, Vimeo, or Cloudinary):")
