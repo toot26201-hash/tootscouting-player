@@ -10,7 +10,7 @@ def init_db():
     conn = sqlite3.connect("tootscouting_relational_media.db")
     cursor = conn.cursor()
     
-    # Table 1: Players Profiles (Updated with sofa_link column)
+    # Table 1: Players Profiles
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS players (
             player_name TEXT PRIMARY KEY,
@@ -21,7 +21,7 @@ def init_db():
         )
     ''')
     
-    # Automatic Migration to add sofa_link if database already exists
+    # Migration to add sofa_link if database already exists
     try:
         cursor.execute("ALTER TABLE players ADD COLUMN sofa_link TEXT")
     except sqlite3.OperationalError:
@@ -61,7 +61,7 @@ def process_vimeo_link(url):
             return f"https://player.vimeo.com/video/{video_id}"
     return url
 
-# Function to add video smartly with SofaScore link support
+# Function to add video smartly
 def add_video_smart(player_name, player_image, player_club, player_age, sofa_link, title, category, url):
     conn = sqlite3.connect("tootscouting_relational_media.db")
     cursor = conn.cursor()
@@ -158,7 +158,6 @@ with tab1:
                     st.markdown(f"<p style='text-align: center; margin-bottom: 2px;'><b>Club:</b> {player['club']}</p>", unsafe_allow_html=True)
                     st.markdown(f"<p style='text-align: center; margin-bottom: 10px;'><b>Age:</b> {player['age']} Y/O</p>", unsafe_allow_html=True)
                     
-                    # SofaScore External Link Button (If Link Provided)
                     if player["sofa_link"]:
                         st.link_button("SofaScore Profile", player["sofa_link"], use_container_width=True)
                     
@@ -189,14 +188,16 @@ with tab1:
             st.session_state.selected_video_url = None
             st.session_state.selected_video_title = ""
 
-        cols = st.columns(7)
+        # Updated to 8 Category Buttons (Added Shots)
+        cols = st.columns(8)
         categories_buttons = [
             ("Passes", "Passes"), 
+            ("Shots", "Shots"),
             ("Dribbles", "Dribbles"), 
-            ("Aerial Duels", "Aerial Duels"), 
+            ("Crosses", "Crosses"),
             ("Ground Duels", "Ground Duels"), 
+            ("Aerial Duels", "Aerial Duels"), 
             ("Pressing", "Pressing"), 
-            ("Crosses", "Crosses"), 
             ("Corners", "Corners")
         ]
         
@@ -221,7 +222,6 @@ with tab1:
                 st.subheader(f"Current Clip: {st.session_state.selected_video_title}")
                 raw_url = st.session_state.selected_video_url
                 
-                # Multi-Provider Display Handler
                 if "drive.google.com" in raw_url:
                     drive_embed = process_google_drive_link(raw_url)
                     st.components.v1.iframe(drive_embed, height=520, scrolling=False)
@@ -265,8 +265,20 @@ with tab2:
         fast_sofa = st.text_input("SofaScore Profile Link (Optional):", key="fast_p_sofa")
         
         with st.form("fast_video_form", clear_on_submit=True):
-            v_title = st.text_input("Clip Title / Event Action (e.g., Deep Pass 1):")
-            v_category = st.selectbox("Assign to Technical Category:", ["Passes", "Dribbles", "Aerial Duels", "Ground Duels", "Pressing", "Crosses", "Corners"])
+            v_title = st.text_input("Clip Title / Event Action (e.g., Long Range Shot 1):")
+            
+            # Updated Dropdown Menu with "Shots"
+            v_category = st.selectbox("Assign to Technical Category:", [
+                "Passes", 
+                "Shots", 
+                "Dribbles", 
+                "Crosses", 
+                "Ground Duels", 
+                "Aerial Duels", 
+                "Pressing", 
+                "Corners"
+            ])
+            
             v_url = st.text_input("Video URL (Google Drive, Vimeo, or Cloudinary):")
             
             submit_video = st.form_submit_button("Upload Clip & Keep Player Profile Locked")
