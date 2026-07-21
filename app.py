@@ -9,14 +9,25 @@ st.set_page_config(layout="wide", page_title="TootScouting Media Center")
 def init_db():
     conn = sqlite3.connect("tootscouting_relational_media.db")
     cursor = conn.cursor()
+    
+    # Table 1: Players Profiles (Updated with sofa_link column)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS players (
             player_name TEXT PRIMARY KEY,
             player_image TEXT,
             player_club TEXT,
-            player_age INTEGER
+            player_age INTEGER,
+            sofa_link TEXT
         )
     ''')
+    
+    # Automatic Migration to add sofa_link if database already exists
+    try:
+        cursor.execute("ALTER TABLE players ADD COLUMN sofa_link TEXT")
+    except sqlite3.OperationalError:
+        pass # Column already exists
+        
+    # Table 2: Videos
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS videos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,18 +61,19 @@ def process_vimeo_link(url):
             return f"https://player.vimeo.com/video/{video_id}"
     return url
 
-# Function to add video smartly
-def add_video_smart(player_name, player_image, player_club, player_age, title, category, url):
+# Function to add video smartly with SofaScore link support
+def add_video_smart(player_name, player_image, player_club, player_age, sofa_link, title, category, url):
     conn = sqlite3.connect("tootscouting_relational_media.db")
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO players (player_name, player_image, player_club, player_age)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO players (player_name, player_image, player_club, player_age, sofa_link)
+        VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(player_name) DO UPDATE SET
             player_image=excluded.player_image,
             player_club=excluded.player_club,
-            player_age=excluded.player_age
-    ''', (player_name.strip(), player_image.strip(), player_club.strip(), int(player_age)))
+            player_age=excluded.player_age,
+            sofa_link=excluded.sofa_link
+    ''', (player_name.strip(), player_image.strip(), player_club.strip(), int(player_age), sofa_link.strip()))
     
     cursor.execute('''
         INSERT INTO videos (player_name, title, category, video_url) 
@@ -74,10 +86,10 @@ def add_video_smart(player_name, player_image, player_club, player_age, title, c
 def get_all_players_profiles():
     conn = sqlite3.connect("tootscouting_relational_media.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT player_name, player_image, player_club, player_age FROM players")
+    cursor.execute("SELECT player_name, player_image, player_club, player_age, sofa_link FROM players")
     rows = cursor.fetchall()
     conn.close()
-    return [{"name": r[0], "image": r[1], "club": r[2], "age": r[3]} for r in rows]
+    return [{"name": r[0], "image": r[1], "club": r[2], "age": r[3], "sofa_link": r[4]} for r in rows]
 
 # Function to get videos by player and category
 def get_videos_by_player_and_category(player_name, category):
@@ -144,7 +156,11 @@ with tab1:
                     
                     st.markdown(f"<h3 style='text-align: center; margin-bottom: 5px;'>{player['name']}</h3>", unsafe_allow_html=True)
                     st.markdown(f"<p style='text-align: center; margin-bottom: 2px;'><b>Club:</b> {player['club']}</p>", unsafe_allow_html=True)
-                    st.markdown(f"<p style='text-align: center; margin-bottom: 15px;'><b>Age:</b> {player['age']} Y/O</p>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='text-align: center; margin-bottom: 10px;'><b>Age:</b> {player['age']} Y/O</p>", unsafe_allow_html=True)
+                    
+                    # SofaScore External Link Button (If Link Provided)
+                    if player["sofa_link"]:
+                        st.link_button("SofaScore Profile", player["sofa_link"], use_container_width=True)
                     
                     if st.button(f"View Analysis", key=f"select_{player['name']}", use_container_width=True):
                         st.session_state.selected_player_name = player["name"]
@@ -246,6 +262,7 @@ with tab2:
         fast_image = st.text_input("Player Profile Image URL:", key="fast_p_img")
         fast_club = st.text_input("Current Club Name:", key="fast_p_club")
         fast_age = st.number_input("Player Age:", min_value=12, max_value=45, value=20, key="fast_p_age")
+        fast_sofa = st.text_input("SofaScore Profile Link (Optional):", key="fast_p_sofa")
         
         with st.form("fast_video_form", clear_on_submit=True):
             v_title = st.text_input("Clip Title / Event Action (e.g., Deep Pass 1):")
@@ -256,7 +273,7 @@ with tab2:
             
             if submit_video:
                 if fast_name and v_title and v_url:
-                    add_video_smart(fast_name, fast_image, fast_club, fast_age, v_title, v_category, v_url)
+                    add_video_smart(fast_name, fast_image, fast_club, fast_age, fast_sofa, v_title, v_category, v_url)
                     st.toast(f"Clip successfully added for {fast_name}!")
                     st.rerun()
                 else:
