@@ -5,6 +5,34 @@ import re
 # 1. Page Configuration
 st.set_page_config(layout="wide", page_title="TootScouting Media Center")
 
+# Custom CSS for Green & Spacious Buttons
+st.markdown("""
+    <style>
+    /* Styling Streamlit Buttons */
+    div.stButton > button {
+        white-space: nowrap !important;
+        padding: 10px 18px !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    /* Primary (Active) Button Styling - Professional Green */
+    div.stButton > button[kind="primary"] {
+        background-color: #10B981 !important;
+        color: white !important;
+        border: 1px solid #10B981 !important;
+        box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3) !important;
+    }
+    
+    /* Hover state for Primary Button */
+    div.stButton > button[kind="primary"]:hover {
+        background-color: #059669 !important;
+        border-color: #059669 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # 2. Database Initialization
 def init_db():
     conn = sqlite3.connect("tootscouting_relational_media.db")
@@ -25,7 +53,7 @@ def init_db():
     try:
         cursor.execute("ALTER TABLE players ADD COLUMN sofa_link TEXT")
     except sqlite3.OperationalError:
-        pass # Column already exists
+        pass
         
     # Table 2: Videos
     cursor.execute('''
@@ -148,7 +176,7 @@ with tab1:
                     st.markdown(
                         f"""
                         <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 15px; margin-top: 10px;">
-                            <img src="{player_img_url}" style="width: 130px; height: 130px; aspect-ratio: 1/1; object-fit: cover; border-radius: 50%; border: 3px solid #0D9AFF;">
+                            <img src="{player_img_url}" style="width: 130px; height: 130px; aspect-ratio: 1/1; object-fit: cover; border-radius: 50%; border: 3px solid #10B981;">
                         </div>
                         """, 
                         unsafe_allow_html=True
@@ -161,7 +189,7 @@ with tab1:
                     if player["sofa_link"]:
                         st.link_button("SofaScore Profile", player["sofa_link"], use_container_width=True)
                     
-                    if st.button(f"View Analysis", key=f"select_{player['name']}", use_container_width=True):
+                    if st.button("View Analysis", key=f"select_{player['name']}", use_container_width=True):
                         st.session_state.selected_player_name = player["name"]
                         st.session_state.active_filter = "Passes"
                         st.session_state.selected_video_url = None
@@ -188,7 +216,6 @@ with tab1:
             st.session_state.selected_video_url = None
             st.session_state.selected_video_title = ""
 
-        # Updated to 14 Category Buttons
         categories_buttons = [
             ("Passes", "Passes"), 
             ("Shots", "Shots"),
@@ -206,13 +233,14 @@ with tab1:
             ("Miscontrol", "Miscontrol")
         ]
         
-        cols = st.columns(len(categories_buttons))
-        
-        for col, (label, tag) in zip(cols, categories_buttons):
+        # Responsive & Spacious Grid Layout for 14 Buttons
+        cols = st.columns(7)
+        for idx, (label, tag) in enumerate(categories_buttons):
+            col_target = cols[idx % 7]
             if st.session_state.active_filter == tag:
-                col.button(label, key=f"user_filter_{tag}", use_container_width=True, type="primary")
+                col_target.button(label, key=f"user_filter_{tag}", use_container_width=True, type="primary")
             else:
-                col.button(label, key=f"user_filter_{tag}", use_container_width=True, on_click=change_filter, args=(tag,))
+                col_target.button(label, key=f"user_filter_{tag}", use_container_width=True, on_click=change_filter, args=(tag,))
                 
         st.markdown("---")
         
@@ -274,7 +302,6 @@ with tab2:
         with st.form("fast_video_form", clear_on_submit=True):
             v_title = st.text_input("Clip Title / Event Action (e.g., Ball Recovery 1):")
             
-            # Updated Dropdown Menu with 14 Categories
             v_category = st.selectbox("Assign to Technical Category:", [
                 "Passes", 
                 "Shots", 
