@@ -5,7 +5,7 @@ import re
 # 1. Page Configuration
 st.set_page_config(layout="wide", page_title="TootScouting Media Center")
 
-# Custom CSS for Green & Spacious Buttons, Flags Navigation, and Responsive Cards
+# Custom CSS for Green & Spacious Buttons
 st.markdown("""
     <style>
     /* Styling Streamlit Buttons */
@@ -46,12 +46,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Database Initialization with Country Column
+# 2. Database Initialization
 def init_db():
     conn = sqlite3.connect("tootscouting_relational_media.db")
     cursor = conn.cursor()
     
-    # Table 1: Players Profiles with extended tactical info + country flag
+    # Table 1: Players Profiles
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS players (
             player_name TEXT PRIMARY KEY,
@@ -61,8 +61,6 @@ def init_db():
             sofa_link TEXT,
             position TEXT,
             preferred_foot TEXT,
-            heatmap_url TEXT,
-            pdf_report_url TEXT,
             country TEXT
         )
     ''')
@@ -72,15 +70,13 @@ def init_db():
         ("sofa_link", "TEXT"),
         ("position", "TEXT"),
         ("preferred_foot", "TEXT"),
-        ("heatmap_url", "TEXT"),
-        ("pdf_report_url", "TEXT"),
         ("country", "TEXT")
     ]
     for col_name, col_type in columns_to_add:
         try:
             cursor.execute(f"ALTER TABLE players ADD COLUMN {col_name} {col_type}")
         except sqlite3.OperationalError:
-            pass # Column already exists
+            pass
         
     # Table 2: Videos
     cursor.execute('''
@@ -116,13 +112,13 @@ def process_vimeo_link(url):
             return f"https://player.vimeo.com/video/{video_id}"
     return url
 
-# Function to add video and update full player metadata smartly
-def add_video_smart(player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, heatmap_url, pdf_report_url, country, title, category, url):
+# Function to add video smartly
+def add_video_smart(player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, country, title, category, url):
     conn = sqlite3.connect("tootscouting_relational_media.db")
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO players (player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, heatmap_url, pdf_report_url, country)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO players (player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, country)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(player_name) DO UPDATE SET
             player_image=excluded.player_image,
             player_club=excluded.player_club,
@@ -130,8 +126,6 @@ def add_video_smart(player_name, player_image, player_club, player_age, sofa_lin
             sofa_link=excluded.sofa_link,
             position=excluded.position,
             preferred_foot=excluded.preferred_foot,
-            heatmap_url=excluded.heatmap_url,
-            pdf_report_url=excluded.pdf_report_url,
             country=excluded.country
     ''', (
         player_name.strip(), 
@@ -141,8 +135,6 @@ def add_video_smart(player_name, player_image, player_club, player_age, sofa_lin
         sofa_link.strip(),
         position.strip(),
         preferred_foot.strip(),
-        heatmap_url.strip(),
-        pdf_report_url.strip(),
         country.strip() if country else "International"
     ))
     
@@ -157,7 +149,7 @@ def add_video_smart(player_name, player_image, player_club, player_age, sofa_lin
 def get_all_players_profiles():
     conn = sqlite3.connect("tootscouting_relational_media.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, heatmap_url, pdf_report_url, country FROM players")
+    cursor.execute("SELECT player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, country FROM players")
     rows = cursor.fetchall()
     conn.close()
     return [{
@@ -168,9 +160,7 @@ def get_all_players_profiles():
         "sofa_link": r[4],
         "position": r[5] if r[5] else "N/A",
         "foot": r[6] if r[6] else "N/A",
-        "heatmap": r[7] if r[7] else "",
-        "pdf": r[8] if r[8] else "",
-        "country": r[9] if r[9] else "International"
+        "country": r[7] if r[7] else "International"
     } for r in rows]
 
 # Function to get videos by player and category
@@ -215,7 +205,7 @@ with tab1:
     players_list = get_all_players_profiles()
     
     if players_list:
-        # 1. Country Flags Navigation Filter
+        # Country Flags Navigation Filter
         all_countries = sorted(list(set([p["country"] for p in players_list if p["country"]])))
         
         if "selected_country" not in st.session_state:
@@ -289,9 +279,6 @@ with tab1:
                         
                         if player["sofa_link"]:
                             st.link_button("SofaScore Profile", player["sofa_link"], use_container_width=True)
-                        
-                        if player["pdf"]:
-                            st.link_button("Download Scouting Report (PDF)", player["pdf"], use_container_width=True)
 
                         if st.button("View Analysis", key=f"select_{player['name']}", use_container_width=True):
                             st.session_state.selected_player_name = player["name"]
@@ -380,11 +367,6 @@ with tab1:
                                 st.session_state.selected_video_url = vid["video_url"]
                                 st.session_state.selected_video_title = vid["title"]
                                 st.rerun()
-                                
-                    if selected_player_obj["heatmap"]:
-                        st.markdown("---")
-                        st.markdown("**TootScouting Heatmap Analytics**")
-                        st.image(selected_player_obj["heatmap"], use_container_width=True, caption="Player Season Pitch Activity")
             else:
                 st.info(f"No video clips available under ({st.session_state.active_filter}) for this player yet.")
         else:
@@ -409,14 +391,12 @@ with tab2:
             fast_image = st.text_input("Player Profile Image URL:", key="fast_p_img")
             fast_club = st.text_input("Current Club Name:", key="fast_p_club")
             fast_age = st.number_input("Player Age:", min_value=12, max_value=45, value=20, key="fast_p_age")
-            fast_country = st.text_input("Country / Flag (e.g., 🇸🇦 Saudi Arabia, 🇫🇮 Finland, 🇪🇬 Egypt):", key="fast_p_country")
         
         with col_b:
+            fast_country = st.text_input("Country / Flag (e.g., 🇸🇦 Saudi Arabia, 🇫🇮 Finland, 🇪🇬 Egypt):", key="fast_p_country")
             fast_pos = st.text_input("Primary Position (e.g., RW / AM):", key="fast_p_pos")
             fast_foot = st.selectbox("Preferred Foot:", ["Right", "Left", "Both"], key="fast_p_foot")
             fast_sofa = st.text_input("SofaScore Profile Link (Optional):", key="fast_p_sofa")
-            fast_heatmap = st.text_input("TootScouting Custom Heatmap Image Link (Optional):", key="fast_p_heat")
-            fast_pdf = st.text_input("Full Scouting PDF Link (Optional):", key="fast_p_pdf")
 
         st.markdown("---")
         
@@ -448,7 +428,7 @@ with tab2:
                 if fast_name and v_title and v_url:
                     add_video_smart(
                         fast_name, fast_image, fast_club, fast_age, fast_sofa, 
-                        fast_pos, fast_foot, fast_heatmap, fast_pdf, fast_country,
+                        fast_pos, fast_foot, fast_country,
                         v_title, v_category, v_url
                     )
                     st.toast(f"Clip & Profile updated successfully for {fast_name}!")
