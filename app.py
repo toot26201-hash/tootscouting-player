@@ -188,8 +188,7 @@ with tab1:
             st.session_state.selected_video_url = None
             st.session_state.selected_video_title = ""
 
-        # Updated to 10 Category Buttons (Added Movement)
-        cols = st.columns(10)
+        # Updated to 14 Category Buttons
         categories_buttons = [
             ("Passes", "Passes"), 
             ("Shots", "Shots"),
@@ -199,9 +198,15 @@ with tab1:
             ("Ground Duels", "Ground Duels"), 
             ("Aerial Duels", "Aerial Duels"), 
             ("Pressing", "Pressing"), 
+            ("Recoveries", "Recoveries"),
+            ("Clearances", "Clearances"),
+            ("Fouls Drawn", "Fouls Drawn"),
+            ("Fouls Committed", "Fouls Committed"),
             ("Corners", "Corners"),
             ("Miscontrol", "Miscontrol")
         ]
+        
+        cols = st.columns(len(categories_buttons))
         
         for col, (label, tag) in zip(cols, categories_buttons):
             if st.session_state.active_filter == tag:
@@ -267,9 +272,9 @@ with tab2:
         fast_sofa = st.text_input("SofaScore Profile Link (Optional):", key="fast_p_sofa")
         
         with st.form("fast_video_form", clear_on_submit=True):
-            v_title = st.text_input("Clip Title / Event Action (e.g., Off-ball Run 1):")
+            v_title = st.text_input("Clip Title / Event Action (e.g., Ball Recovery 1):")
             
-            # Updated Dropdown Menu with "Movement"
+            # Updated Dropdown Menu with 14 Categories
             v_category = st.selectbox("Assign to Technical Category:", [
                 "Passes", 
                 "Shots", 
@@ -279,6 +284,10 @@ with tab2:
                 "Ground Duels", 
                 "Aerial Duels", 
                 "Pressing", 
+                "Recoveries",
+                "Clearances",
+                "Fouls Drawn",
+                "Fouls Committed",
                 "Corners",
                 "Miscontrol"
             ])
