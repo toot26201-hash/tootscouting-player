@@ -60,8 +60,7 @@ def init_db():
             player_age INTEGER,
             sofa_link TEXT,
             position TEXT,
-            preferred_foot TEXT,
-            country TEXT
+            preferred_foot TEXT
         )
     ''')
     
@@ -69,8 +68,7 @@ def init_db():
     columns_to_add = [
         ("sofa_link", "TEXT"),
         ("position", "TEXT"),
-        ("preferred_foot", "TEXT"),
-        ("country", "TEXT")
+        ("preferred_foot", "TEXT")
     ]
     for col_name, col_type in columns_to_add:
         try:
@@ -113,20 +111,19 @@ def process_vimeo_link(url):
     return url
 
 # Function to add video smartly
-def add_video_smart(player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, country, title, category, url):
+def add_video_smart(player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, title, category, url):
     conn = sqlite3.connect("tootscouting_relational_media.db")
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO players (player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, country)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO players (player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(player_name) DO UPDATE SET
             player_image=excluded.player_image,
             player_club=excluded.player_club,
             player_age=excluded.player_age,
             sofa_link=excluded.sofa_link,
             position=excluded.position,
-            preferred_foot=excluded.preferred_foot,
-            country=excluded.country
+            preferred_foot=excluded.preferred_foot
     ''', (
         player_name.strip(), 
         player_image.strip(), 
@@ -134,8 +131,7 @@ def add_video_smart(player_name, player_image, player_club, player_age, sofa_lin
         int(player_age), 
         sofa_link.strip(),
         position.strip(),
-        preferred_foot.strip(),
-        country.strip() if country else "International"
+        preferred_foot.strip()
     ))
     
     cursor.execute('''
@@ -149,7 +145,7 @@ def add_video_smart(player_name, player_image, player_club, player_age, sofa_lin
 def get_all_players_profiles():
     conn = sqlite3.connect("tootscouting_relational_media.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, country FROM players")
+    cursor.execute("SELECT player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot FROM players")
     rows = cursor.fetchall()
     conn.close()
     return [{
@@ -159,8 +155,7 @@ def get_all_players_profiles():
         "age": r[3], 
         "sofa_link": r[4],
         "position": r[5] if r[5] else "N/A",
-        "foot": r[6] if r[6] else "N/A",
-        "country": r[7] if r[7] else "International"
+        "foot": r[6] if r[6] else "N/A"
     } for r in rows]
 
 # Function to get videos by player and category
@@ -205,172 +200,132 @@ with tab1:
     players_list = get_all_players_profiles()
     
     if players_list:
-        # Country Flags Navigation Filter
-        all_countries = sorted(list(set([p["country"] for p in players_list if p["country"]])))
+        st.subheader("Available Player Profiles:")
+        num_columns = min(len(players_list), 4)
+        card_cols = st.columns(num_columns) if num_columns > 0 else []
         
-        if "selected_country" not in st.session_state:
-            st.session_state.selected_country = "All"
+        if "selected_player_name" not in st.session_state or st.session_state.selected_player_name not in [p["name"] for p in players_list]:
+            st.session_state.selected_player_name = players_list[0]["name"]
             
-        st.subheader("Select League / Country Location:")
-        country_cols = st.columns(len(all_countries) + 1)
-        
-        # 'All Countries' Button
-        if st.session_state.selected_country == "All":
-            country_cols[0].button("All Locations", key="cntry_all", use_container_width=True, type="primary")
-        else:
-            if country_cols[0].button("All Locations", key="cntry_all", use_container_width=True):
-                st.session_state.selected_country = "All"
-                st.rerun()
-                
-        # Individual Country Flag Buttons
-        for c_idx, country_name in enumerate(all_countries):
-            col_target = country_cols[c_idx + 1]
-            if st.session_state.selected_country == country_name:
-                col_target.button(f"{country_name}", key=f"cntry_{country_name}", use_container_width=True, type="primary")
-            else:
-                if col_target.button(f"{country_name}", key=f"cntry_{country_name}", use_container_width=True):
-                    st.session_state.selected_country = country_name
-                    st.rerun()
+        for idx, player in enumerate(players_list):
+            col_idx = idx % 4
+            with card_cols[col_idx]:
+                with st.container(border=True):
+                    player_img_url = player["image"] if player["image"] else "https://via.placeholder.com/150"
+                    st.markdown(
+                        f"""
+                        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 12px; margin-top: 5px;">
+                            <img src="{player_img_url}" style="width: 120px; height: 120px; aspect-ratio: 1/1; object-fit: cover; border-radius: 50%; border: 3px solid #10B981;">
+                        </div>
+                        """, 
+                        unsafe_allow_html=True
+                    )
+                    
+                    st.markdown(f"<h3 style='text-align: center; margin-bottom: 2px;'>{player['name']}</h3>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='text-align: center; margin-bottom: 6px;'><b>Club:</b> {player['club']} | <b>Age:</b> {player['age']} Y/O</p>", unsafe_allow_html=True)
+                    
+                    st.markdown(
+                        f"""
+                        <div style="text-align: center; margin-bottom: 12px;">
+                            <span class="bio-tag">Pos: {player['position']}</span>
+                            <span class="bio-tag">Foot: {player['foot']}</span>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                    
+                    if player["sofa_link"]:
+                        st.link_button("SofaScore Profile", player["sofa_link"], use_container_width=True)
+
+                    if st.button("View Analysis", key=f"select_{player['name']}", use_container_width=True):
+                        st.session_state.selected_player_name = player["name"]
+                        st.session_state.active_filter = "Passes"
+                        st.session_state.selected_video_url = None
+                        st.session_state.selected_video_title = ""
+                        st.rerun()
 
         st.markdown("---")
-
-        # Filter players by selected country
-        if st.session_state.selected_country == "All":
-            filtered_players = players_list
-        else:
-            filtered_players = [p for p in players_list if p["country"] == st.session_state.selected_country]
-
-        st.subheader(f"Available Player Profiles ({st.session_state.selected_country}):")
         
-        if filtered_players:
-            num_columns = min(len(filtered_players), 4)
-            card_cols = st.columns(num_columns) if num_columns > 0 else []
-            
-            if "selected_player_name" not in st.session_state or st.session_state.selected_player_name not in [p["name"] for p in filtered_players]:
-                st.session_state.selected_player_name = filtered_players[0]["name"]
-                
-            for idx, player in enumerate(filtered_players):
-                col_idx = idx % 4
-                with card_cols[col_idx]:
-                    with st.container(border=True):
-                        player_img_url = player["image"] if player["image"] else "https://via.placeholder.com/150"
-                        st.markdown(
-                            f"""
-                            <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 12px; margin-top: 5px;">
-                                <img src="{player_img_url}" style="width: 120px; height: 120px; aspect-ratio: 1/1; object-fit: cover; border-radius: 50%; border: 3px solid #10B981;">
-                            </div>
-                            """, 
-                            unsafe_allow_html=True
-                        )
-                        
-                        st.markdown(f"<h3 style='text-align: center; margin-bottom: 2px;'>{player['name']}</h3>", unsafe_allow_html=True)
-                        st.markdown(f"<p style='text-align: center; margin-bottom: 4px;'><b>Club:</b> {player['club']} | <b>Age:</b> {player['age']}</p>", unsafe_allow_html=True)
-                        st.markdown(f"<p style='text-align: center; margin-bottom: 6px; color: #10B981; font-weight: bold;'>Location: {player['country']}</p>", unsafe_allow_html=True)
-                        
-                        st.markdown(
-                            f"""
-                            <div style="text-align: center; margin-bottom: 12px;">
-                                <span class="bio-tag">Pos: {player['position']}</span>
-                                <span class="bio-tag">Foot: {player['foot']}</span>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-                        
-                        if player["sofa_link"]:
-                            st.link_button("SofaScore Profile", player["sofa_link"], use_container_width=True)
+        # Retrieve selected player object
+        selected_player_obj = next((p for p in players_list if p["name"] == st.session_state.selected_player_name), players_list[0])
 
-                        if st.button("View Analysis", key=f"select_{player['name']}", use_container_width=True):
-                            st.session_state.selected_player_name = player["name"]
-                            st.session_state.active_filter = "Passes"
-                            st.session_state.selected_video_url = None
-                            st.session_state.selected_video_title = ""
-                            st.rerun()
+        st.write(f"## Technical Performance Dashboard: **{selected_player_obj['name']}**")
+        
+        if "active_filter" not in st.session_state:
+            st.session_state.active_filter = "Passes"
+        if "selected_video_url" not in st.session_state:
+            st.session_state.selected_video_url = None
+        if "selected_video_title" not in st.session_state:
+            st.session_state.selected_video_title = ""
 
-            st.markdown("---")
-            
-            # Retrieve selected player object
-            selected_player_obj = next((p for p in filtered_players if p["name"] == st.session_state.selected_player_name), filtered_players[0])
+        def change_filter(category_name):
+            st.session_state.active_filter = category_name
+            st.session_state.selected_video_url = None
+            st.session_state.selected_video_title = ""
 
-            st.write(f"## Technical Performance Dashboard: **{selected_player_obj['name']}**")
-            
-            if "active_filter" not in st.session_state:
-                st.session_state.active_filter = "Passes"
-            if "selected_video_url" not in st.session_state:
-                st.session_state.selected_video_url = None
-            if "selected_video_title" not in st.session_state:
-                st.session_state.selected_video_title = ""
-
-            def change_filter(category_name):
-                st.session_state.active_filter = category_name
-                st.session_state.selected_video_url = None
-                st.session_state.selected_video_title = ""
-
-            categories_buttons = [
-                ("Passes", "Passes"), 
-                ("Shots", "Shots"),
-                ("Movement", "Movement"),
-                ("Dribbles", "Dribbles"), 
-                ("Crosses", "Crosses"),
-                ("Ground Duels", "Ground Duels"), 
-                ("Aerial Duels", "Aerial Duels"), 
-                ("Pressing", "Pressing"), 
-                ("Recoveries", "Recoveries"),
-                ("Clearances", "Clearances"),
-                ("Fouls Drawn", "Fouls Drawn"),
-                ("Fouls Committed", "Fouls Committed"),
-                ("Corners", "Corners"),
-                ("Miscontrol", "Miscontrol")
-            ]
-            
-            cols = st.columns(7)
-            for idx, (label, tag) in enumerate(categories_buttons):
-                col_target = cols[idx % 7]
-                if st.session_state.active_filter == tag:
-                    col_target.button(label, key=f"user_filter_{tag}", use_container_width=True, type="primary")
-                else:
-                    col_target.button(label, key=f"user_filter_{tag}", use_container_width=True, on_click=change_filter, args=(tag,))
-                    
-            st.markdown("---")
-            
-            current_playlist = get_videos_by_player_and_category(selected_player_obj["name"], st.session_state.active_filter)
-            
-            if current_playlist:
-                if st.session_state.selected_video_url is None:
-                    st.session_state.selected_video_url = current_playlist[0]["video_url"]
-                    st.session_state.selected_video_title = current_playlist[0]["title"]
-                    
-                player_col, list_col = st.columns([3, 1])
-                
-                with player_col:
-                    st.subheader(f"Current Clip: {st.session_state.selected_video_title}")
-                    raw_url = st.session_state.selected_video_url
-                    
-                    if "drive.google.com" in raw_url:
-                        drive_embed = process_google_drive_link(raw_url)
-                        st.components.v1.iframe(drive_embed, height=520, scrolling=False)
-                    elif "vimeo.com" in raw_url:
-                        vimeo_embed = process_vimeo_link(raw_url)
-                        st.components.v1.iframe(vimeo_embed, height=520, scrolling=False)
-                    elif "player.cloudinary.com" in raw_url or "iframe" in raw_url:
-                        st.components.v1.iframe(raw_url, height=520, scrolling=False)
-                    else:
-                        st.video(raw_url)
-                    
-                with list_col:
-                    st.subheader("Video Clips")
-                    for vid in current_playlist:
-                        if vid["video_url"] == st.session_state.selected_video_url:
-                            st.success(f"PLAYING: {vid['title']}")
-                        else:
-                            if st.button(f"{vid['title']}", key=f"user_vid_btn_{vid['id']}", use_container_width=True):
-                                st.session_state.selected_video_url = vid["video_url"]
-                                st.session_state.selected_video_title = vid["title"]
-                                st.rerun()
+        categories_buttons = [
+            ("Passes", "Passes"), 
+            ("Shots", "Shots"),
+            ("Movement", "Movement"),
+            ("Dribbles", "Dribbles"), 
+            ("Crosses", "Crosses"),
+            ("Ground Duels", "Ground Duels"), 
+            ("Aerial Duels", "Aerial Duels"), 
+            ("Pressing", "Pressing"), 
+            ("Recoveries", "Recoveries"),
+            ("Clearances", "Clearances"),
+            ("Fouls Drawn", "Fouls Drawn"),
+            ("Fouls Committed", "Fouls Committed"),
+            ("Corners", "Corners"),
+            ("Miscontrol", "Miscontrol")
+        ]
+        
+        cols = st.columns(7)
+        for idx, (label, tag) in enumerate(categories_buttons):
+            col_target = cols[idx % 7]
+            if st.session_state.active_filter == tag:
+                col_target.button(label, key=f"user_filter_{tag}", use_container_width=True, type="primary")
             else:
-                st.info(f"No video clips available under ({st.session_state.active_filter}) for this player yet.")
+                col_target.button(label, key=f"user_filter_{tag}", use_container_width=True, on_click=change_filter, args=(tag,))
+                
+        st.markdown("---")
+        
+        current_playlist = get_videos_by_player_and_category(selected_player_obj["name"], st.session_state.active_filter)
+        
+        if current_playlist:
+            if st.session_state.selected_video_url is None:
+                st.session_state.selected_video_url = current_playlist[0]["video_url"]
+                st.session_state.selected_video_title = current_playlist[0]["title"]
+                
+            player_col, list_col = st.columns([3, 1])
+            
+            with player_col:
+                st.subheader(f"Current Clip: {st.session_state.selected_video_title}")
+                raw_url = st.session_state.selected_video_url
+                
+                if "drive.google.com" in raw_url:
+                    drive_embed = process_google_drive_link(raw_url)
+                    st.components.v1.iframe(drive_embed, height=520, scrolling=False)
+                elif "vimeo.com" in raw_url:
+                    vimeo_embed = process_vimeo_link(raw_url)
+                    st.components.v1.iframe(vimeo_embed, height=520, scrolling=False)
+                elif "player.cloudinary.com" in raw_url or "iframe" in raw_url:
+                    st.components.v1.iframe(raw_url, height=520, scrolling=False)
+                else:
+                    st.video(raw_url)
+                
+            with list_col:
+                st.subheader("Video Clips")
+                for vid in current_playlist:
+                    if vid["video_url"] == st.session_state.selected_video_url:
+                        st.success(f"PLAYING: {vid['title']}")
+                    else:
+                        if st.button(f"{vid['title']}", key=f"user_vid_btn_{vid['id']}", use_container_width=True):
+                            st.session_state.selected_video_url = vid["video_url"]
+                            st.session_state.selected_video_title = vid["title"]
+                            st.rerun()
         else:
-            st.info(f"No player profiles available in {st.session_state.selected_country} currently.")
+            st.info(f"No video clips available under ({st.session_state.active_filter}) for this player yet.")
     else:
         st.info("Welcome to TootScouting. Profiles will appear here once the analyst uploads the data.")
 
@@ -393,7 +348,6 @@ with tab2:
             fast_age = st.number_input("Player Age:", min_value=12, max_value=45, value=20, key="fast_p_age")
         
         with col_b:
-            fast_country = st.text_input("Country / Flag (e.g., 🇸🇦 Saudi Arabia, 🇫🇮 Finland, 🇪🇬 Egypt):", key="fast_p_country")
             fast_pos = st.text_input("Primary Position (e.g., RW / AM):", key="fast_p_pos")
             fast_foot = st.selectbox("Preferred Foot:", ["Right", "Left", "Both"], key="fast_p_foot")
             fast_sofa = st.text_input("SofaScore Profile Link (Optional):", key="fast_p_sofa")
@@ -428,7 +382,7 @@ with tab2:
                 if fast_name and v_title and v_url:
                     add_video_smart(
                         fast_name, fast_image, fast_club, fast_age, fast_sofa, 
-                        fast_pos, fast_foot, fast_country,
+                        fast_pos, fast_foot,
                         v_title, v_category, v_url
                     )
                     st.toast(f"Clip & Profile updated successfully for {fast_name}!")
