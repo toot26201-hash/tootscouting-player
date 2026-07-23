@@ -48,7 +48,7 @@ st.markdown("""
 
 # 2. Permanent Supabase Cloud Database Connection
 SUPABASE_URL = "https://tpldhmjbbhpzzlctrwcs.supabase.co"
-SUPABASE_KEY = "4970ee0d-a248-485f-9549-793e800bb6ad"
+SUPABASE_KEY = "sb_publishable_Chs3SrP6SCxQDWPrEG7k_g_AN8NgdTq"
 
 @st.cache_resource
 def get_supabase_client() -> Client:
@@ -74,11 +74,12 @@ def process_vimeo_link(url):
             return f"https://player.vimeo.com/video/{video_id}"
     return url
 
-# Function to add video & player profile into Supabase Cloud
+# Safe Function to add video & player profile into Supabase Cloud
 def add_video_smart(player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, title, category, url):
-    # Upsert Player Profile
+    p_name = player_name.strip()
+    
     player_data = {
-        "player_name": player_name.strip(),
+        "player_name": p_name,
         "player_image": player_image.strip(),
         "player_club": player_club.strip(),
         "player_age": int(player_age),
@@ -86,11 +87,18 @@ def add_video_smart(player_name, player_image, player_club, player_age, sofa_lin
         "position": position.strip(),
         "preferred_foot": preferred_foot.strip()
     }
-    supabase.table("players").upsert(player_data).execute()
+    
+    # Check if player exists first
+    existing = supabase.table("players").select("player_name").eq("player_name", p_name).execute()
+    
+    if existing.data:
+        supabase.table("players").update(player_data).eq("player_name", p_name).execute()
+    else:
+        supabase.table("players").insert(player_data).execute()
     
     # Insert Video Clip Record
     video_data = {
-        "player_name": player_name.strip(),
+        "player_name": p_name,
         "title": title.strip(),
         "category": category.strip(),
         "video_url": url.strip()
