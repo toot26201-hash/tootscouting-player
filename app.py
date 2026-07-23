@@ -1,11 +1,11 @@
 import streamlit as st
-import sqlite3
 import re
+from supabase import create_client, Client
 
 # 1. Page Configuration
 st.set_page_config(layout="wide", page_title="TootScouting Media Center")
 
-# Custom CSS for Green & Spacious Buttons
+# Custom CSS for Emerald Green & Spacious Buttons
 st.markdown("""
     <style>
     /* Styling Streamlit Buttons */
@@ -46,51 +46,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Database Initialization
-def init_db():
-    conn = sqlite3.connect("tootscouting_relational_media.db")
-    cursor = conn.cursor()
-    
-    # Table 1: Players Profiles
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS players (
-            player_name TEXT PRIMARY KEY,
-            player_image TEXT,
-            player_club TEXT,
-            player_age INTEGER,
-            sofa_link TEXT,
-            position TEXT,
-            preferred_foot TEXT
-        )
-    ''')
-    
-    # Auto-migration columns if updating existing DB
-    columns_to_add = [
-        ("sofa_link", "TEXT"),
-        ("position", "TEXT"),
-        ("preferred_foot", "TEXT")
-    ]
-    for col_name, col_type in columns_to_add:
-        try:
-            cursor.execute(f"ALTER TABLE players ADD COLUMN {col_name} {col_type}")
-        except sqlite3.OperationalError:
-            pass
-        
-    # Table 2: Videos
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS videos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            player_name TEXT,
-            title TEXT,
-            category TEXT,
-            video_url TEXT,
-            FOREIGN KEY (player_name) REFERENCES players (player_name)
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# 2. Permanent Supabase Cloud Database Connection
+SUPABASE_URL = "https://tpldhmjbbhpzzlctrwcs.supabase.co"
+SUPABASE_KEY = "sb_publishable_Chs3SrP6SCxQDWPrEG7k_g_AN8NgdTq"
 
-init_db()
+@st.cache_resource
+def get_supabase_client() -> Client:
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
+
+supabase = get_supabase_client()
 
 # Smart function to process Google Drive links for direct iframe preview
 def process_google_drive_link(url):
@@ -110,84 +74,66 @@ def process_vimeo_link(url):
             return f"https://player.vimeo.com/video/{video_id}"
     return url
 
-# Function to add video smartly
+# Function to add video & player profile into Supabase Cloud
 def add_video_smart(player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, title, category, url):
-    conn = sqlite3.connect("tootscouting_relational_media.db")
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO players (player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(player_name) DO UPDATE SET
-            player_image=excluded.player_image,
-            player_club=excluded.player_club,
-            player_age=excluded.player_age,
-            sofa_link=excluded.sofa_link,
-            position=excluded.position,
-            preferred_foot=excluded.preferred_foot
-    ''', (
-        player_name.strip(), 
-        player_image.strip(), 
-        player_club.strip(), 
-        int(player_age), 
-        sofa_link.strip(),
-        position.strip(),
-        preferred_foot.strip()
-    ))
+    # Upsert Player Profile
+    player_data = {
+        "player_name": player_name.strip(),
+        "player_image": player_image.strip(),
+        "player_club": player_club.strip(),
+        "player_age": int(player_age),
+        "sofa_link": sofa_link.strip(),
+        "position": position.strip(),
+        "preferred_foot": preferred_foot.strip()
+    }
+    supabase.table("players").upsert(player_data).execute()
     
-    cursor.execute('''
-        INSERT INTO videos (player_name, title, category, video_url) 
-        VALUES (?, ?, ?, ?)
-    ''', (player_name.strip(), title, category, url))
-    conn.commit()
-    conn.close()
+    # Insert Video Clip Record
+    video_data = {
+        "player_name": player_name.strip(),
+        "title": title.strip(),
+        "category": category.strip(),
+        "video_url": url.strip()
+    }
+    supabase.table("videos").insert(video_data).execute()
 
-# Function to get all players profiles
+# Function to get all players profiles from Supabase Cloud
 def get_all_players_profiles():
-    conn = sqlite3.connect("tootscouting_relational_media.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot FROM players")
-    rows = cursor.fetchall()
-    conn.close()
-    return [{
-        "name": r[0], 
-        "image": r[1], 
-        "club": r[2], 
-        "age": r[3], 
-        "sofa_link": r[4],
-        "position": r[5] if r[5] else "N/A",
-        "foot": r[6] if r[6] else "N/A"
-    } for r in rows]
+    try:
+        response = supabase.table("players").select("*").execute()
+        rows = response.data
+        return [{
+            "name": r["player_name"], 
+            "image": r["player_image"], 
+            "club": r["player_club"], 
+            "age": r["player_age"], 
+            "sofa_link": r["sofa_link"],
+            "position": r.get("position", "N/A"),
+            "foot": r.get("preferred_foot", "N/A")
+        } for r in rows]
+    except Exception:
+        return []
 
-# Function to get videos by player and category
+# Function to get videos by player and category from Supabase
 def get_videos_by_player_and_category(player_name, category):
-    conn = sqlite3.connect("tootscouting_relational_media.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, title, video_url FROM videos WHERE player_name = ? AND category = ?", (player_name, category))
-    rows = cursor.fetchall()
-    conn.close()
-    return [{"id": r[0], "title": r[1], "video_url": r[2]} for r in rows]
+    try:
+        response = supabase.table("videos").select("*").eq("player_name", player_name).eq("category", category).execute()
+        rows = response.data
+        return [{"id": r["id"], "title": r["title"], "video_url": r["video_url"]} for r in rows]
+    except Exception:
+        return []
 
 # Function to get ALL videos for management deletion
 def get_all_videos_raw():
-    conn = sqlite3.connect("tootscouting_relational_media.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, player_name, title, category FROM videos ORDER BY id DESC")
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
+    try:
+        response = supabase.table("videos").select("*").order("id", desc=True).execute()
+        return response.data
+    except Exception:
+        return []
 
-# Function to delete a video by ID
+# Function to delete a video by ID from Supabase
 def delete_video_by_id(video_id):
-    conn = sqlite3.connect("tootscouting_relational_media.db")
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM videos WHERE id = ?", (video_id,))
-    conn.commit()
-    
-    cursor.execute('''
-        DELETE FROM players WHERE player_name NOT IN (SELECT DISTINCT player_name FROM videos)
-    ''')
-    conn.commit()
-    conn.close()
+    supabase.table("videos").delete().eq("id", video_id).execute()
 
 # --- TootScouting UI Layout ---
 st.title("Scouting & Video Analysis Center - TootScouting")
@@ -376,7 +322,7 @@ with tab2:
             
             v_url = st.text_input("Video URL (Google Drive, Vimeo, or Cloudinary):")
             
-            submit_video = st.form_submit_button("Upload Clip & Save Player Profile")
+            submit_video = st.form_submit_button("Upload Clip & Save Player Profile to Cloud")
             
             if submit_video:
                 if fast_name and v_title and v_url:
@@ -385,7 +331,7 @@ with tab2:
                         fast_pos, fast_foot,
                         v_title, v_category, v_url
                     )
-                    st.toast(f"Clip & Profile updated successfully for {fast_name}!")
+                    st.toast(f"Clip & Profile permanently saved to Cloud for {fast_name}!")
                     st.rerun()
                 else:
                     st.error("Action Required: Fill all required video form details.")
@@ -404,7 +350,12 @@ with tab2:
             head_cols[4].markdown("**Action**")
             st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
             
-            for vid_id, p_name, title, cat in all_videos:
+            for vid in all_videos:
+                vid_id = vid["id"]
+                p_name = vid["player_name"]
+                title = vid["title"]
+                cat = vid["category"]
+                
                 row_cols = st.columns([1, 2, 3, 2, 2])
                 row_cols[0].write(f"#{vid_id}")
                 row_cols[1].write(p_name)
@@ -416,4 +367,4 @@ with tab2:
                     st.toast(f"Clip #{vid_id} deleted successfully!")
                     st.rerun()
         else:
-            st.info("Database is currently empty. No videos to manage.")
+            st.info("Cloud Database is currently empty. No videos stored.")
