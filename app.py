@@ -48,7 +48,7 @@ st.markdown("""
 
 # 2. Permanent Supabase Cloud Database Connection
 SUPABASE_URL = "https://tpldhmjbbhpzzlctrwcs.supabase.co"
-SUPABASE_KEY = "sb_publishable_Chs3SrP6SCxQDWPrEG7k_g_AN8NgdTq"
+SUPABASE_KEY = "4970ee0d-a248-485f-9549-793e800bb6ad"
 
 @st.cache_resource
 def get_supabase_client() -> Client:
