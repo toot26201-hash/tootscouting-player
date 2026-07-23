@@ -270,16 +270,18 @@ with tab1:
                 st.subheader(f"Current Clip: {st.session_state.selected_video_title}")
                 raw_url = st.session_state.selected_video_url
                 
+                # Smart Video Embed Router to prevent MediaFileStorageError
                 if "drive.google.com" in raw_url:
                     drive_embed = process_google_drive_link(raw_url)
                     st.components.v1.iframe(drive_embed, height=520, scrolling=False)
                 elif "vimeo.com" in raw_url:
                     vimeo_embed = process_vimeo_link(raw_url)
                     st.components.v1.iframe(vimeo_embed, height=520, scrolling=False)
-                elif "player.cloudinary.com" in raw_url or "iframe" in raw_url:
-                    st.components.v1.iframe(raw_url, height=520, scrolling=False)
-                else:
+                elif raw_url.endswith((".mp4", ".webm", ".ogg", ".mov")):
                     st.video(raw_url)
+                else:
+                    # Generic Safe iFrame wrapper for web links (Cloudinary, web players, etc.)
+                    st.components.v1.iframe(raw_url, height=520, scrolling=False)
                 
             with list_col:
                 st.subheader("Video Clips")
