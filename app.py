@@ -46,9 +46,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Permanent Supabase Cloud Database Connection
-SUPABASE_URL = "https://tpldhmjbbhpzzlctrwcs.supabase.co"
-SUPABASE_KEY = "sb_publishable_Chs3SrP6SCxQDWPrEG7k_g_AN8NgdTq"
+# 2. Permanent Supabase Cloud Connection via Streamlit Secrets
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 @st.cache_resource
 def get_supabase_client() -> Client:
@@ -58,7 +58,7 @@ supabase = get_supabase_client()
 
 # Smart function to process Google Drive links for direct iframe preview
 def process_google_drive_link(url):
-    if "drive.google.com" in url:
+    if url and "drive.google.com" in url:
         match = re.search(r'/d/([^/]+)', url)
         if match:
             file_id = match.group(1)
@@ -67,55 +67,65 @@ def process_google_drive_link(url):
 
 # Smart function to process Vimeo URLs into player embed links
 def process_vimeo_link(url):
-    if "vimeo.com" in url:
+    if url and "vimeo.com" in url:
         match = re.search(r'vimeo\.com/(\d+)', url)
         if match:
             video_id = match.group(1)
             return f"https://player.vimeo.com/video/{video_id}"
     return url
 
-# Safe Function to add video & player profile into Supabase Cloud
+# Bulletproof Function to add video & player profile into Supabase Cloud
 def add_video_smart(player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, title, category, url):
-    p_name = player_name.strip()
-    
-    player_data = {
-        "player_name": p_name,
-        "player_image": player_image.strip(),
-        "player_club": player_club.strip(),
-        "player_age": int(player_age),
-        "sofa_link": sofa_link.strip(),
-        "position": position.strip(),
-        "preferred_foot": preferred_foot.strip()
-    }
-    
-    # Check if player exists first
-    existing = supabase.table("players").select("player_name").eq("player_name", p_name).execute()
-    
-    if existing.data:
-        supabase.table("players").update(player_data).eq("player_name", p_name).execute()
-    else:
-        supabase.table("players").insert(player_data).execute()
-    
-    # Insert Video Clip Record
-    video_data = {
-        "player_name": p_name,
-        "title": title.strip(),
-        "category": category.strip(),
-        "video_url": url.strip()
-    }
-    supabase.table("videos").insert(video_data).execute()
+    try:
+        p_name = str(player_name).strip()
+        
+        try:
+            p_age = int(player_age)
+        except (ValueError, TypeError):
+            p_age = 20
+            
+        player_data = {
+            "player_name": p_name,
+            "player_image": str(player_image).strip() if player_image else "",
+            "player_club": str(player_club).strip() if player_club else "",
+            "player_age": p_age,
+            "sofa_link": str(sofa_link).strip() if sofa_link else "",
+            "position": str(position).strip() if position else "N/A",
+            "preferred_foot": str(preferred_foot).strip() if preferred_foot else "Both"
+        }
+        
+        # Check if player exists
+        existing = supabase.table("players").select("player_name").eq("player_name", p_name).execute()
+        
+        if existing.data and len(existing.data) > 0:
+            supabase.table("players").update(player_data).eq("player_name", p_name).execute()
+        else:
+            supabase.table("players").insert(player_data).execute()
+        
+        # Insert Video Clip Record
+        video_data = {
+            "player_name": p_name,
+            "title": str(title).strip(),
+            "category": str(category).strip(),
+            "video_url": str(url).strip()
+        }
+        supabase.table("videos").insert(video_data).execute()
+        return True, f"Successfully uploaded clip and profile for {p_name}!"
+        
+    except Exception as e:
+        return False, f"Supabase Error: {str(e)}"
 
 # Function to get all players profiles from Supabase Cloud
 def get_all_players_profiles():
     try:
         response = supabase.table("players").select("*").execute()
-        rows = response.data
+        rows = response.data if response.data else []
         return [{
-            "name": r["player_name"], 
-            "image": r["player_image"], 
-            "club": r["player_club"], 
-            "age": r["player_age"], 
-            "sofa_link": r["sofa_link"],
+            "name": r.get("player_name", "Unknown"), 
+            "image": r.get("player_image", ""), 
+            "club": r.get("player_club", ""), 
+            "age": r.get("player_age", 20), 
+            "sofa_link": r.get("sofa_link", ""),
             "position": r.get("position", "N/A"),
             "foot": r.get("preferred_foot", "N/A")
         } for r in rows]
@@ -126,7 +136,7 @@ def get_all_players_profiles():
 def get_videos_by_player_and_category(player_name, category):
     try:
         response = supabase.table("videos").select("*").eq("player_name", player_name).eq("category", category).execute()
-        rows = response.data
+        rows = response.data if response.data else []
         return [{"id": r["id"], "title": r["title"], "video_url": r["video_url"]} for r in rows]
     except Exception:
         return []
@@ -135,13 +145,16 @@ def get_videos_by_player_and_category(player_name, category):
 def get_all_videos_raw():
     try:
         response = supabase.table("videos").select("*").order("id", desc=True).execute()
-        return response.data
+        return response.data if response.data else []
     except Exception:
         return []
 
 # Function to delete a video by ID from Supabase
 def delete_video_by_id(video_id):
-    supabase.table("videos").delete().eq("id", video_id).execute()
+    try:
+        supabase.table("videos").delete().eq("id", video_id).execute()
+    except Exception:
+        pass
 
 # --- TootScouting UI Layout ---
 st.title("Scouting & Video Analysis Center - TootScouting")
@@ -334,15 +347,19 @@ with tab2:
             
             if submit_video:
                 if fast_name and v_title and v_url:
-                    add_video_smart(
+                    success, msg = add_video_smart(
                         fast_name, fast_image, fast_club, fast_age, fast_sofa, 
                         fast_pos, fast_foot,
                         v_title, v_category, v_url
                     )
-                    st.toast(f"Clip & Profile permanently saved to Cloud for {fast_name}!")
-                    st.rerun()
+                    if success:
+                        st.toast(msg)
+                        st.success(msg)
+                        st.rerun()
+                    else:
+                        st.error(msg)
                 else:
-                    st.error("Action Required: Fill all required video form details.")
+                    st.error("Action Required: Fill all required video form details (Name, Title, Video Link).")
                     
         st.markdown("---")
         
