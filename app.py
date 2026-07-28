@@ -1,13 +1,11 @@
 import streamlit as st
 import re
-import json
-import plotly.graph_objects as go
 from supabase import create_client, Client
 
 # 1. Page Configuration
 st.set_page_config(layout="wide", page_title="TootScouting Media Center")
 
-# Custom CSS for Emerald Green & Spacious Buttons
+# Custom CSS
 st.markdown("""
     <style>
     div.stButton > button {
@@ -54,8 +52,8 @@ def get_supabase_client() -> Client:
 
 supabase = get_supabase_client()
 
-# Smart function to process Google Drive links
-def process_google_drive_link(url):
+# Process Google Drive links for Video / PDF / Image Embeds
+def process_google_drive_embed(url):
     if url and "drive.google.com" in url:
         match = re.search(r'/d/([^/]+)', url)
         if match:
@@ -63,7 +61,7 @@ def process_google_drive_link(url):
             return f"https://drive.google.com/file/d/{file_id}/preview"
     return url
 
-# Smart function to process Vimeo URLs
+# Process Vimeo URLs
 def process_vimeo_link(url):
     if url and "vimeo.com" in url:
         match = re.search(r'vimeo\.com/(\d+)', url)
@@ -72,49 +70,8 @@ def process_vimeo_link(url):
             return f"https://player.vimeo.com/video/{video_id}"
     return url
 
-# Function to plot Radar Chart
-def plot_player_radar(radar_dict):
-    if not radar_dict:
-        categories = ['Passing', 'Dribbling', 'Pace', 'Defending', 'Physical', 'Shooting']
-        values = [50, 50, 50, 50, 50, 50]
-    else:
-        categories = list(radar_dict.keys())
-        values = list(radar_dict.values())
-        
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatterpolar(
-        r=values + [values[0]],
-        theta=categories + [categories[0]],
-        fill='toself',
-        fillcolor='rgba(16, 185, 129, 0.4)',
-        line=dict(color='#10B981', width=3),
-        name='Performance Profile'
-    ))
-
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                visible=True,
-                range=[0, 100],
-                tickfont=dict(color="#CBD5E1"),
-                gridcolor="#334155"
-            ),
-            angularaxis=dict(
-                tickfont=dict(size=14, color="#F8FAFC"),
-                gridcolor="#334155"
-            ),
-            bgcolor="#0F172A"
-        ),
-        paper_bgcolor="#0F172A",
-        font=dict(color="#F8FAFC"),
-        margin=dict(l=40, r=40, t=30, b=30),
-        showlegend=False
-    )
-    return fig
-
-# Safe Function to add/update player and clip
-def add_video_smart(player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, scouting_report, radar_data, title, category, url):
+# Function to Add/Update Player & Clips
+def add_video_smart(player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, radar_image, pdf_report_url, title, category, url):
     try:
         p_name = str(player_name).strip()
         
@@ -131,8 +88,8 @@ def add_video_smart(player_name, player_image, player_club, player_age, sofa_lin
             "sofa_link": str(sofa_link).strip() if sofa_link else "",
             "position": str(position).strip() if position else "N/A",
             "preferred_foot": str(preferred_foot).strip() if preferred_foot else "Both",
-            "scouting_report": str(scouting_report).strip() if scouting_report else "",
-            "radar_data": radar_data
+            "radar_image": str(radar_image).strip() if radar_image else "",
+            "pdf_report_url": str(pdf_report_url).strip() if pdf_report_url else ""
         }
         
         existing = supabase.table("players").select("player_name").eq("player_name", p_name).execute()
@@ -156,7 +113,7 @@ def add_video_smart(player_name, player_image, player_club, player_age, sofa_lin
     except Exception as e:
         return False, f"Supabase Error: {str(e)}"
 
-# Function to get all players
+# Function to Fetch Players
 def get_all_players_profiles():
     try:
         response = supabase.table("players").select("*").execute()
@@ -169,8 +126,8 @@ def get_all_players_profiles():
             "sofa_link": r.get("sofa_link", ""),
             "position": r.get("position", "N/A"),
             "foot": r.get("preferred_foot", "N/A"),
-            "scouting_report": r.get("scouting_report", ""),
-            "radar_data": r.get("radar_data", {})
+            "radar_image": r.get("radar_image", ""),
+            "pdf_report_url": r.get("pdf_report_url", "")
         } for r in rows]
     except Exception:
         return []
@@ -257,8 +214,8 @@ with tab1:
 
         st.write(f"## Technical Performance Dashboard: **{selected_player_obj['name']}**")
         
-        # Inner Tabs for Video Clips vs Scouting Report & Radar
-        p_tab1, p_tab2, p_tab3 = st.tabs(["🎥 Video Analysis Clips", "📊 Performance Radar Chart", "📝 Scouting Report"])
+        # Tabs for Video Clips, Radar Chart Image, and PDF Scouting Report
+        p_tab1, p_tab2, p_tab3 = st.tabs(["🎥 Video Analysis Clips", "📊 Performance Radar Chart", "📄 Scouting PDF Report"])
         
         with p_tab1:
             if "active_filter" not in st.session_state:
@@ -305,7 +262,7 @@ with tab1:
                     raw_url = st.session_state.selected_video_url
                     
                     if "drive.google.com" in raw_url:
-                        drive_embed = process_google_drive_link(raw_url)
+                        drive_embed = process_google_drive_embed(raw_url)
                         st.components.v1.iframe(drive_embed, height=520, scrolling=False)
                     elif "vimeo.com" in raw_url:
                         vimeo_embed = process_vimeo_link(raw_url)
@@ -329,17 +286,22 @@ with tab1:
                 st.info(f"No video clips available under ({st.session_state.active_filter}) for this player yet.")
 
         with p_tab2:
-            st.subheader(f"Technical Attributes Profile - {selected_player_obj['name']}")
-            radar_fig = plot_player_radar(selected_player_obj.get("radar_data"))
-            st.plotly_chart(radar_fig, use_container_width=True)
+            st.subheader(f"Radar Chart Profile - {selected_player_obj['name']}")
+            radar_img = selected_player_obj.get("radar_image")
+            if radar_img:
+                st.image(radar_img, use_column_width=True, caption=f"Performance Radar for {selected_player_obj['name']}")
+            else:
+                st.info("No Radar Chart image uploaded for this player yet.")
 
         with p_tab3:
-            st.subheader(f"Detailed Scouting Report & Executive Summary")
-            report_text = selected_player_obj.get("scouting_report")
-            if report_text:
-                st.markdown(report_text)
+            st.subheader(f"Full Scouting PDF Report")
+            pdf_url = selected_player_obj.get("pdf_report_url")
+            if pdf_url:
+                pdf_embed = process_google_drive_embed(pdf_url)
+                st.components.v1.iframe(pdf_embed, height=750, scrolling=True)
+                st.link_button("Download / Open Full PDF in New Tab", pdf_url, use_container_width=True)
             else:
-                st.info("No detailed scouting report added for this player yet.")
+                st.info("No PDF Scouting Report uploaded for this player yet.")
 
     else:
         st.info("Welcome to TootScouting. Profiles will appear here once the analyst uploads the data.")
@@ -353,7 +315,7 @@ with tab2:
         st.success("Access Granted!")
         st.markdown("---")
         
-        st.write("### 1. Player Profile & Scouting Report Management Studio")
+        st.write("### 1. Player Profile, Radar & PDF Report Management Studio")
         
         col_a, col_b = st.columns(2)
         with col_a:
@@ -367,32 +329,17 @@ with tab2:
             fast_foot = st.selectbox("Preferred Foot:", ["Right", "Left", "Both"], key="fast_p_foot")
             fast_sofa = st.text_input("SofaScore Profile Link (Optional):", key="fast_p_sofa")
 
-        st.markdown("#### 📊 Radar Metrics Rating (0 - 100)")
-        r_cols1 = st.columns(3)
-        r_cols2 = st.columns(3)
+        st.markdown("---")
+        st.write("### 2. Radar Image & PDF Scouting Report Links")
         
-        val_pass = r_cols1[0].slider("Passing & Vision", 0, 100, 70)
-        val_dribble = r_cols1[1].slider("Dribbling & Ball Control", 0, 100, 75)
-        val_pace = r_cols1[2].slider("Pace & Acceleration", 0, 100, 80)
-        
-        val_def = r_cols2[0].slider("Defending & Workrate", 0, 100, 60)
-        val_phys = r_cols2[1].slider("Physical & Duels", 0, 100, 65)
-        val_shoot = r_cols2[2].slider("Shooting & Finishing", 0, 100, 70)
-        
-        radar_json_data = {
-            "Passing": val_pass,
-            "Dribbling": val_dribble,
-            "Pace": val_pace,
-            "Defending": val_def,
-            "Physical": val_phys,
-            "Shooting": val_shoot
-        }
-
-        st.markdown("#### 📝 Scouting Report Text")
-        scout_report_input = st.text_area("Write full tactical assessment, strengths, weaknesses, and potential:", height=150)
+        col_r1, col_r2 = st.columns(2)
+        with col_r1:
+            radar_img_input = st.text_input("Radar Chart Image Link (URL or Drive Image):")
+        with col_r2:
+            pdf_report_input = st.text_input("PDF Scouting Report Link (Google Drive / Cloud Link):")
 
         st.markdown("---")
-        st.write("### 2. Video Clip Details (Optional when updating report only)")
+        st.write("### 3. Video Clip Details (Optional when updating report only)")
         
         v_title = st.text_input("Clip Title / Event Action (e.g., Ball Recovery 1):")
         v_category = st.selectbox("Assign to Technical Category:", [
@@ -402,11 +349,11 @@ with tab2:
         ])
         v_url = st.text_input("Video URL (Google Drive, Vimeo, or Cloudinary):")
         
-        if st.button("Save Profile, Radar & Report to Cloud", type="primary", use_container_width=True):
+        if st.button("Save Profile, Radar & PDF Report to Cloud", type="primary", use_container_width=True):
             if fast_name:
                 success, msg = add_video_smart(
                     fast_name, fast_image, fast_club, fast_age, fast_sofa, 
-                    fast_pos, fast_foot, scout_report_input, radar_json_data,
+                    fast_pos, fast_foot, radar_img_input, pdf_report_input,
                     v_title, v_category, v_url
                 )
                 if success:
@@ -420,7 +367,7 @@ with tab2:
                     
         st.markdown("---")
         
-        st.write("### 3. Manage & Delete Uploaded Video Clips")
+        st.write("### 4. Manage & Delete Uploaded Video Clips")
         all_videos = get_all_videos_raw()
         
         if all_videos:
