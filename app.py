@@ -5,9 +5,10 @@ from supabase import create_client, Client
 # 1. Page Configuration
 st.set_page_config(layout="wide", page_title="TootScouting Media Center")
 
-# Custom CSS
+# Custom CSS for Emerald Glowing Hover Effect
 st.markdown("""
     <style>
+    /* Styling Streamlit Buttons */
     div.stButton > button {
         white-space: nowrap !important;
         padding: 10px 18px !important;
@@ -28,6 +29,7 @@ st.markdown("""
         border-color: #059669 !important;
     }
     
+    /* Player Bio Tags */
     .bio-tag {
         background-color: #1E293B;
         color: #F8FAFC;
@@ -38,6 +40,18 @@ st.markdown("""
         display: inline-block;
         margin: 2px;
         border: 1px solid #334155;
+    }
+    
+    /* GREEN GLOW EFFECT ON HOVER FOR PLAYER CARDS */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        transition: all 0.4s ease-in-out !important;
+        border-radius: 12px !important;
+    }
+    
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+        border-color: #10B981 !important;
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.65), 0 0 5px rgba(16, 185, 129, 0.8) !important;
+        transform: translateY(-4px) !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -84,7 +98,7 @@ TACTICAL_CATEGORIES = [
     "Shots", 
     "Movement", 
     "Dribbles", 
-    "1v1",              # المواجهات الفردية
+    "1v1", 
     "Ball Carrying", 
     "Ball Retention", 
     "Crosses", 
