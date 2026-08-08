@@ -9,7 +9,7 @@ st.set_page_config(layout="wide", page_title="TootScouting Media Center")
 st.markdown("""
     <style>
     /* 1. UNIVERSAL BUTTON STYLING WITH NEON GREEN GLOW ON HOVER */
-    div.stButton > button, div.stFormSubmitButton > button, a[data-testid="stHeaderNavigateButton"] {
+    div.stButton > button, div.stFormSubmitButton > button, a[data-testid="stHeaderNavigateButton"], a.stLinkButton {
         white-space: nowrap !important;
         padding: 10px 18px !important;
         font-weight: 600 !important;
@@ -18,6 +18,7 @@ st.markdown("""
         background-color: #1E293B !important;
         color: #F8FAFC !important;
         border: 1px solid #334155 !important;
+        text-decoration: none !important;
     }
     
     /* Active / Primary Button Style */
@@ -29,7 +30,7 @@ st.markdown("""
     }
     
     /* ALL BUTTONS HOVER EFFECT (GREEN GLOW) */
-    div.stButton > button:hover, div.stFormSubmitButton > button:hover {
+    div.stButton > button:hover, div.stFormSubmitButton > button:hover, a.stLinkButton:hover {
         border-color: #10B981 !important;
         color: #10B981 !important;
         box-shadow: 0 0 18px rgba(16, 185, 129, 0.75), 0 0 5px rgba(16, 185, 129, 0.9) !important;
@@ -54,20 +55,36 @@ st.markdown("""
         border: 1px solid #334155;
     }
 
-    /* CUSTOM GLOWING CARD STYLING */
+    /* CUSTOM GLOWING CARD STYLING FOR PLAYERS */
     .glowing-card {
         background-color: #0F172A;
         border: 1px solid #1E293B;
         border-radius: 12px;
-        padding: 15px;
+        padding: 18px;
         transition: all 0.35s ease-in-out;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
     }
 
     .glowing-card:hover {
         border-color: #10B981 !important;
-        box-shadow: 0 0 18px rgba(16, 185, 129, 0.7), 0 0 5px rgba(16, 185, 129, 0.9) !important;
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.7), 0 0 6px rgba(16, 185, 129, 0.9) !important;
         transform: translateY(-5px);
+    }
+
+    /* COMPACT & SIMPLE STAFF CARD STYLING */
+    .staff-card-compact {
+        background-color: #0F172A;
+        border: 1px solid #1E293B;
+        border-radius: 10px;
+        padding: 12px 15px;
+        transition: all 0.3s ease-in-out;
+        margin-bottom: 12px;
+    }
+
+    .staff-card-compact:hover {
+        border-color: #10B981 !important;
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.6) !important;
+        transform: translateY(-3px);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -268,7 +285,6 @@ with tab1:
             with card_cols[col_idx]:
                 player_img_url = player["image"] if player["image"] else "https://via.placeholder.com/150"
                 
-                # Glowing Card Container
                 st.markdown(
                     f"""
                     <div class="glowing-card">
@@ -385,34 +401,35 @@ with tab1:
     else:
         st.info("Welcome to TootScouting. Profiles will appear here once the analyst uploads the data.")
 
-# ----------------- Tab 2: Staff Showcase -----------------
+# ----------------- Tab 2: Staff Showcase (Simple & Compact) -----------------
 with tab2:
     st.subheader("TootScouting Professional Technical Staff & Analysts")
     st.markdown("---")
     
     staff_members = get_all_staff()
     if staff_members:
-        cols_count = min(len(staff_members), 3)
+        cols_count = min(len(staff_members), 4)
         staff_cols = st.columns(cols_count) if cols_count > 0 else []
         
         for idx, member in enumerate(staff_members):
-            col_target = staff_cols[idx % 3]
+            col_target = staff_cols[idx % 4]
             with col_target:
                 img = member.get("image_url") if member.get("image_url") else "https://via.placeholder.com/150"
                 
-                # Glowing Staff Card Container
+                # Simple & Compact Staff Card HTML
                 st.markdown(
                     f"""
-                    <div class="glowing-card">
-                        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 10px;">
-                            <img src="{img}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 3px solid #10B981;">
+                    <div class="staff-card-compact">
+                        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 8px;">
+                            <img src="{img}" style="width: 75px; height: 75px; border-radius: 50%; object-fit: cover; border: 2px solid #10B981;">
                         </div>
-                        <h3 style="text-align: center; margin-bottom: 0px;">{member['name']}</h3>
-                        <p style="text-align: center; color: #10B981; font-weight: bold;">{member['role']}</p>
-                        <p style="font-style: italic; margin-top: 5px;">{member.get('bio', '')}</p>
-                        <hr style="border-color: #334155; margin: 10px 0;">
-                        <p style="margin: 3px 0;">📧 <b>Email:</b> {member.get('email', 'N/A')}</p>
-                        <p style="margin: 3px 0;">📞 <b>Phone:</b> {member.get('phone', 'N/A')}</p>
+                        <h4 style="text-align: center; margin: 0; font-size: 16px;">{member['name']}</h4>
+                        <p style="text-align: center; color: #10B981; font-weight: 600; font-size: 13px; margin-bottom: 6px;">{member['role']}</p>
+                        <p style="font-style: italic; text-align: center; font-size: 12px; margin-bottom: 8px; color: #94A3B8;">{member.get('bio', '')}</p>
+                        <div style="font-size: 11px; border-top: 1px solid #1E293B; padding-top: 6px; color: #CBD5E1;">
+                            {'<div style="margin-bottom: 2px;">📧 ' + member['email'] + '</div>' if member.get('email') else ''}
+                            {'<div>📞 ' + member['phone'] + '</div>' if member.get('phone') else ''}
+                        </div>
                     </div>
                     """,
                     unsafe_allow_html=True
@@ -549,7 +566,7 @@ with tab3:
                 row_cols[2].write(title)
                 row_cols[3].write(cat)
                 
-                if row_cols[4].button("Delete", key=f"del_{vid_id}", type="secondary", use_container_width=True):
+                if row_cols[4].button("Delete", key=f"del_vid_{vid_id}", type="secondary", use_container_width=True):
                     delete_video_by_id(vid_id)
                     st.toast(f"Clip #{vid_id} deleted successfully!")
                     st.rerun()
