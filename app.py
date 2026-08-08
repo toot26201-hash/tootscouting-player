@@ -52,7 +52,7 @@ def get_supabase_client() -> Client:
 
 supabase = get_supabase_client()
 
-# Process Google Drive links for Video / PDF / Image Embeds
+# Helpers
 def process_google_drive_embed(url):
     if url and "drive.google.com" in url:
         match = re.search(r'/d/([^/]+)', url)
@@ -61,7 +61,6 @@ def process_google_drive_embed(url):
             return f"https://drive.google.com/file/d/{file_id}/preview"
     return url
 
-# Process Vimeo URLs
 def process_vimeo_link(url):
     if url and "vimeo.com" in url:
         match = re.search(r'vimeo\.com/(\d+)', url)
@@ -70,11 +69,32 @@ def process_vimeo_link(url):
             return f"https://player.vimeo.com/video/{video_id}"
     return url
 
-# Function to Add/Update Player & Clips
+# Comprehensive Tactical Categories List
+TACTICAL_CATEGORIES = [
+    "Passes", 
+    "Shots", 
+    "Movement", 
+    "Dribbles", 
+    "Ball Carrying",    # حمل الكرة
+    "Ball Retention",   # حماية الكرة
+    "Crosses", 
+    "Ground Duels", 
+    "Aerial Duels", 
+    "Tackles",          # التاكلز
+    "Pressing", 
+    "Recoveries", 
+    "Clearances", 
+    "Throw-ins",        # الثرو إن / رميات التماس
+    "Fouls Drawn", 
+    "Fouls Committed", 
+    "Corners", 
+    "Miscontrol"
+]
+
+# Database Operations
 def add_video_smart(player_name, player_image, player_club, player_age, sofa_link, position, preferred_foot, radar_image, pdf_report_url, title, category, url):
     try:
         p_name = str(player_name).strip()
-        
         try:
             p_age = int(player_age)
         except (ValueError, TypeError):
@@ -109,11 +129,9 @@ def add_video_smart(player_name, player_image, player_club, player_age, sofa_lin
             supabase.table("videos").insert(video_data).execute()
             
         return True, f"Profile and Data updated successfully for {p_name}!"
-        
     except Exception as e:
         return False, f"Supabase Error: {str(e)}"
 
-# Function to Fetch Players
 def get_all_players_profiles():
     try:
         response = supabase.table("players").select("*").execute()
@@ -153,11 +171,40 @@ def delete_video_by_id(video_id):
     except Exception:
         pass
 
+# Staff Database Operations
+def add_staff_member(name, role, email, phone, image_url, bio):
+    try:
+        staff_data = {
+            "name": str(name).strip(),
+            "role": str(role).strip(),
+            "email": str(email).strip() if email else "",
+            "phone": str(phone).strip() if phone else "",
+            "image_url": str(image_url).strip() if image_url else "",
+            "bio": str(bio).strip() if bio else ""
+        }
+        supabase.table("staff").insert(staff_data).execute()
+        return True, f"Staff member '{name}' added successfully!"
+    except Exception as e:
+        return False, f"Error adding staff: {str(e)}"
+
+def get_all_staff():
+    try:
+        response = supabase.table("staff").select("*").order("id", desc=True).execute()
+        return response.data if response.data else []
+    except Exception:
+        return []
+
+def delete_staff_by_id(staff_id):
+    try:
+        supabase.table("staff").delete().eq("id", staff_id).execute()
+    except Exception:
+        pass
+
 # --- UI Layout ---
 st.title("Scouting & Video Analysis Center - TootScouting")
 st.markdown("---")
 
-tab1, tab2 = st.tabs(["Player Showcase & Analysis", "Analyst Control Panel"])
+tab1, tab2, tab3 = st.tabs(["Player Showcase & Analysis", "👥 Our Staff & Team", "Analyst Control Panel"])
 
 # ----------------- Tab 1: Client / User Interface -----------------
 with tab1:
@@ -214,7 +261,6 @@ with tab1:
 
         st.write(f"## Technical Performance Dashboard: **{selected_player_obj['name']}**")
         
-        # Tabs for Video Clips, Radar Chart Image, and PDF Scouting Report
         p_tab1, p_tab2, p_tab3 = st.tabs(["🎥 Video Analysis Clips", "📊 Performance Radar Chart", "📄 Scouting PDF Report"])
         
         with p_tab1:
@@ -230,21 +276,13 @@ with tab1:
                 st.session_state.selected_video_url = None
                 st.session_state.selected_video_title = ""
 
-            categories_buttons = [
-                ("Passes", "Passes"), ("Shots", "Shots"), ("Movement", "Movement"),
-                ("Dribbles", "Dribbles"), ("Crosses", "Crosses"), ("Ground Duels", "Ground Duels"),
-                ("Aerial Duels", "Aerial Duels"), ("Pressing", "Pressing"), ("Recoveries", "Recoveries"),
-                ("Clearances", "Clearances"), ("Fouls Drawn", "Fouls Drawn"), ("Fouls Committed", "Fouls Committed"),
-                ("Corners", "Corners"), ("Miscontrol", "Miscontrol")
-            ]
-            
-            cols = st.columns(7)
-            for idx, (label, tag) in enumerate(categories_buttons):
-                col_target = cols[idx % 7]
-                if st.session_state.active_filter == tag:
-                    col_target.button(label, key=f"user_filter_{tag}", use_container_width=True, type="primary")
+            cols = st.columns(6)
+            for idx, cat_name in enumerate(TACTICAL_CATEGORIES):
+                col_target = cols[idx % 6]
+                if st.session_state.active_filter == cat_name:
+                    col_target.button(cat_name, key=f"user_filter_{cat_name}", use_container_width=True, type="primary")
                 else:
-                    col_target.button(label, key=f"user_filter_{tag}", use_container_width=True, on_click=change_filter, args=(tag,))
+                    col_target.button(cat_name, key=f"user_filter_{cat_name}", use_container_width=True, on_click=change_filter, args=(cat_name,))
                     
             st.markdown("---")
             
@@ -306,8 +344,45 @@ with tab1:
     else:
         st.info("Welcome to TootScouting. Profiles will appear here once the analyst uploads the data.")
 
-# ----------------- Tab 2: Analyst Control Panel -----------------
+# ----------------- Tab 2: Staff Showcase -----------------
 with tab2:
+    st.subheader("TootScouting Professional Technical Staff & Analysts")
+    st.markdown("---")
+    
+    staff_members = get_all_staff()
+    if staff_members:
+        cols_count = min(len(staff_members), 3)
+        staff_cols = st.columns(cols_count) if cols_count > 0 else []
+        
+        for idx, member in enumerate(staff_members):
+            col_target = staff_cols[idx % 3]
+            with col_target:
+                with st.container(border=True):
+                    img = member.get("image_url") if member.get("image_url") else "https://via.placeholder.com/150"
+                    st.markdown(
+                        f"""
+                        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 10px;">
+                            <img src="{img}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 3px solid #10B981;">
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                    st.markdown(f"<h3 style='text-align: center; margin-bottom: 0px;'>{member['name']}</h3>", unsafe_allow_html=True)
+                    st.markdown(f"<p style='text-align: center; color: #10B981; font-weight: bold;'>{member['role']}</p>", unsafe_allow_html=True)
+                    
+                    if member.get("bio"):
+                        st.write(f"*{member['bio']}*")
+                    
+                    st.markdown("---")
+                    if member.get("email"):
+                        st.write(f"📧 **Email:** {member['email']}")
+                    if member.get("phone"):
+                        st.write(f"📞 **Phone:** {member['phone']}")
+    else:
+        st.info("No staff members added yet. Add staff details from the Analyst Control Panel.")
+
+# ----------------- Tab 3: Analyst Control Panel -----------------
+with tab3:
     st.subheader("Secure Analyst Login")
     password = st.text_input("Enter password to access the upload studio:", type="password")
     
@@ -315,6 +390,7 @@ with tab2:
         st.success("Access Granted!")
         st.markdown("---")
         
+        # Section 1: Player Profile Management
         st.write("### 1. Player Profile, Radar & PDF Report Management Studio")
         
         col_a, col_b = st.columns(2)
@@ -342,11 +418,7 @@ with tab2:
         st.write("### 3. Video Clip Details (Optional when updating report only)")
         
         v_title = st.text_input("Clip Title / Event Action (e.g., Ball Recovery 1):")
-        v_category = st.selectbox("Assign to Technical Category:", [
-            "Passes", "Shots", "Movement", "Dribbles", "Crosses", "Ground Duels",
-            "Aerial Duels", "Pressing", "Recoveries", "Clearances", "Fouls Drawn",
-            "Fouls Committed", "Corners", "Miscontrol"
-        ])
+        v_category = st.selectbox("Assign to Technical Category:", TACTICAL_CATEGORIES)
         v_url = st.text_input("Video URL (Google Drive, Vimeo, or Cloudinary):")
         
         if st.button("Save Profile, Radar & PDF Report to Cloud", type="primary", use_container_width=True):
@@ -367,7 +439,54 @@ with tab2:
                     
         st.markdown("---")
         
-        st.write("### 4. Manage & Delete Uploaded Video Clips")
+        # Section 2: Manage Staff
+        st.write("### 4. Manage Staff Team & Analysts")
+        
+        with st.form("add_staff_form", clear_on_submit=True):
+            st.markdown("#### Add New Staff Member")
+            s_col1, s_col2 = st.columns(2)
+            with s_col1:
+                s_name = st.text_input("Staff Full Name:")
+                s_role = st.text_input("Role / Job Title (e.g., Head Scouting Analyst):")
+                s_img = st.text_input("Profile Image URL:")
+            with s_col2:
+                s_email = st.text_input("Email Address:")
+                s_phone = st.text_input("Phone Number / WhatsApp:")
+            
+            s_bio = st.text_area("Brief Bio / Specialization Area:")
+            
+            submit_staff = st.form_submit_button("Add Staff Member to Team")
+            
+            if submit_staff:
+                if s_name and s_role:
+                    ok, msg = add_staff_member(s_name, s_role, s_email, s_phone, s_img, s_bio)
+                    if ok:
+                        st.toast(msg)
+                        st.success(msg)
+                        st.rerun()
+                    else:
+                        st.error(msg)
+                else:
+                    st.error("Please fill Name and Role fields.")
+        
+        all_staff = get_all_staff()
+        if all_staff:
+            st.markdown("#### Existing Staff Members")
+            for m in all_staff:
+                st_cols = st.columns([1, 2, 2, 2, 1])
+                st_cols[0].write(f"#{m['id']}")
+                st_cols[1].write(f"**{m['name']}**")
+                st_cols[2].write(m['role'])
+                st_cols[3].write(m.get('email', 'N/A'))
+                if st_cols[4].button("Delete", key=f"del_staff_{m['id']}", type="secondary"):
+                    delete_staff_by_id(m['id'])
+                    st.toast(f"Deleted {m['name']}")
+                    st.rerun()
+
+        st.markdown("---")
+        
+        # Section 3: Manage Videos
+        st.write("### 5. Manage & Delete Uploaded Video Clips")
         all_videos = get_all_videos_raw()
         
         if all_videos:
