@@ -8,7 +8,7 @@ st.set_page_config(layout="wide", page_title="TootScouting Media Center")
 # Custom CSS for Neon Green Glow Effect on Hover (Cards & ALL Buttons)
 st.markdown("""
     <style>
-    /* 1. UNIVERSAL BUTTON STYLING WITH NEON GREEN GLOW ON HOVER */
+    /* UNIVERSAL BUTTON STYLING WITH NEON GREEN GLOW ON HOVER */
     div.stButton > button, div.stFormSubmitButton > button, a[data-testid="stHeaderNavigateButton"], a.stLinkButton {
         white-space: nowrap !important;
         padding: 10px 18px !important;
@@ -55,7 +55,7 @@ st.markdown("""
         border: 1px solid #334155;
     }
 
-    /* CUSTOM GLOWING CARD STYLING FOR PLAYERS */
+    /* GLOWING CARD STYLING FOR PLAYERS */
     .glowing-card {
         background-color: #0F172A;
         border: 1px solid #1E293B;
@@ -71,20 +71,22 @@ st.markdown("""
         transform: translateY(-5px);
     }
 
-    /* COMPACT & SIMPLE STAFF CARD STYLING */
-    .staff-card-compact {
+    /* COMPACT, SMALL & PERFECTLY SIZED STAFF CARD */
+    .staff-card-mini {
         background-color: #0F172A;
         border: 1px solid #1E293B;
-        border-radius: 10px;
-        padding: 12px 15px;
-        transition: all 0.3s ease-in-out;
-        margin-bottom: 12px;
+        border-radius: 12px;
+        padding: 15px;
+        max-width: 260px;
+        margin: 10px auto;
+        text-align: center;
+        transition: all 0.35s ease-in-out;
     }
 
-    .staff-card-compact:hover {
+    .staff-card-mini:hover {
         border-color: #10B981 !important;
-        box-shadow: 0 0 15px rgba(16, 185, 129, 0.6) !important;
-        transform: translateY(-3px);
+        box-shadow: 0 0 18px rgba(16, 185, 129, 0.7) !important;
+        transform: translateY(-4px);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -291,8 +293,8 @@ with tab1:
                         <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 12px; margin-top: 5px;">
                             <img src="{player_img_url}" style="width: 120px; height: 120px; aspect-ratio: 1/1; object-fit: cover; border-radius: 50%; border: 3px solid #10B981;">
                         </div>
-                        <h3 style="text-align: center; margin-bottom: 2px;">{player['name']}</h3>
-                        <p style="text-align: center; margin-bottom: 6px;"><b>Club:</b> {player['club']} | <b>Age:</b> {player['age']} Y/O</p>
+                        <h3 style="text-align: center; margin-bottom: 2px; color: #F8FAFC;">{player['name']}</h3>
+                        <p style="text-align: center; margin-bottom: 6px; color: #CBD5E1;"><b>Club:</b> {player['club']} | <b>Age:</b> {player['age']} Y/O</p>
                         <div style="text-align: center; margin-bottom: 12px;">
                             <span class="bio-tag">Pos: {player['position']}</span>
                             <span class="bio-tag">Foot: {player['foot']}</span>
@@ -401,35 +403,38 @@ with tab1:
     else:
         st.info("Welcome to TootScouting. Profiles will appear here once the analyst uploads the data.")
 
-# ----------------- Tab 2: Staff Showcase (Simple & Compact) -----------------
+# ----------------- Tab 2: Staff Showcase (Clean, Small & Fixed) -----------------
 with tab2:
     st.subheader("TootScouting Professional Technical Staff & Analysts")
     st.markdown("---")
     
     staff_members = get_all_staff()
     if staff_members:
-        cols_count = min(len(staff_members), 4)
-        staff_cols = st.columns(cols_count) if cols_count > 0 else []
+        # 4 Cards per row layout
+        cols = st.columns(4)
         
         for idx, member in enumerate(staff_members):
-            col_target = staff_cols[idx % 4]
+            col_target = cols[idx % 4]
             with col_target:
                 img = member.get("image_url") if member.get("image_url") else "https://via.placeholder.com/150"
                 
-                # Simple & Compact Staff Card HTML
+                # HTML template for small card with white text
+                email_html = f'<p style="margin: 3px 0; font-size: 11px; color: #CBD5E1;">📧 {member["email"]}</p>' if member.get('email') else ''
+                phone_html = f'<p style="margin: 3px 0; font-size: 11px; color: #CBD5E1;">📞 {member["phone"]}</p>' if member.get('phone') else ''
+                bio_html = f'<p style="font-style: italic; font-size: 12px; margin: 6px 0; color: #94A3B8;">{member["bio"]}</p>' if member.get('bio') else ''
+
                 st.markdown(
                     f"""
-                    <div class="staff-card-compact">
-                        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 8px;">
-                            <img src="{img}" style="width: 75px; height: 75px; border-radius: 50%; object-fit: cover; border: 2px solid #10B981;">
+                    <div class="staff-card-mini">
+                        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 10px;">
+                            <img src="{img}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2.5px solid #10B981;">
                         </div>
-                        <h4 style="text-align: center; margin: 0; font-size: 16px;">{member['name']}</h4>
-                        <p style="text-align: center; color: #10B981; font-weight: 600; font-size: 13px; margin-bottom: 6px;">{member['role']}</p>
-                        <p style="font-style: italic; text-align: center; font-size: 12px; margin-bottom: 8px; color: #94A3B8;">{member.get('bio', '')}</p>
-                        <div style="font-size: 11px; border-top: 1px solid #1E293B; padding-top: 6px; color: #CBD5E1;">
-                            {'<div style="margin-bottom: 2px;">📧 ' + member['email'] + '</div>' if member.get('email') else ''}
-                            {'<div>📞 ' + member['phone'] + '</div>' if member.get('phone') else ''}
-                        </div>
+                        <h4 style="margin: 0; font-size: 15px; color: #F8FAFC; font-weight: 700;">{member['name']}</h4>
+                        <p style="color: #10B981; font-weight: 600; font-size: 13px; margin: 4px 0 8px 0;">{member['role']}</p>
+                        {bio_html}
+                        {(email_html or phone_html) and '<hr style="border-color: #1E293B; margin: 8px 0;">'}
+                        {email_html}
+                        {phone_html}
                     </div>
                     """,
                     unsafe_allow_html=True
