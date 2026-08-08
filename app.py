@@ -5,7 +5,7 @@ from supabase import create_client, Client
 # 1. Page Configuration
 st.set_page_config(layout="wide", page_title="TootScouting Media Center")
 
-# Custom CSS for Emerald Glowing Hover Effect
+# Custom CSS for Neon Green Glow Effect on Hover
 st.markdown("""
     <style>
     /* Styling Streamlit Buttons */
@@ -41,17 +41,21 @@ st.markdown("""
         margin: 2px;
         border: 1px solid #334155;
     }
-    
-    /* GREEN GLOW EFFECT ON HOVER FOR PLAYER CARDS */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        transition: all 0.4s ease-in-out !important;
-        border-radius: 12px !important;
+
+    /* CUSTOM GLOWING CARD STYLING */
+    .glowing-card {
+        background-color: #0F172A;
+        border: 1px solid #1E293B;
+        border-radius: 12px;
+        padding: 15px;
+        transition: all 0.35s ease-in-out;
+        margin-bottom: 10px;
     }
-    
-    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+
+    .glowing-card:hover {
         border-color: #10B981 !important;
-        box-shadow: 0 0 20px rgba(16, 185, 129, 0.65), 0 0 5px rgba(16, 185, 129, 0.8) !important;
-        transform: translateY(-4px) !important;
+        box-shadow: 0 0 18px rgba(16, 185, 129, 0.7), 0 0 5px rgba(16, 185, 129, 0.9) !important;
+        transform: translateY(-5px);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -250,39 +254,35 @@ with tab1:
         for idx, player in enumerate(players_list):
             col_idx = idx % 4
             with card_cols[col_idx]:
-                with st.container(border=True):
-                    player_img_url = player["image"] if player["image"] else "https://via.placeholder.com/150"
-                    st.markdown(
-                        f"""
+                player_img_url = player["image"] if player["image"] else "https://via.placeholder.com/150"
+                
+                # Glowing Card Container
+                st.markdown(
+                    f"""
+                    <div class="glowing-card">
                         <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 12px; margin-top: 5px;">
                             <img src="{player_img_url}" style="width: 120px; height: 120px; aspect-ratio: 1/1; object-fit: cover; border-radius: 50%; border: 3px solid #10B981;">
                         </div>
-                        """, 
-                        unsafe_allow_html=True
-                    )
-                    
-                    st.markdown(f"<h3 style='text-align: center; margin-bottom: 2px;'>{player['name']}</h3>", unsafe_allow_html=True)
-                    st.markdown(f"<p style='text-align: center; margin-bottom: 6px;'><b>Club:</b> {player['club']} | <b>Age:</b> {player['age']} Y/O</p>", unsafe_allow_html=True)
-                    
-                    st.markdown(
-                        f"""
+                        <h3 style="text-align: center; margin-bottom: 2px;">{player['name']}</h3>
+                        <p style="text-align: center; margin-bottom: 6px;"><b>Club:</b> {player['club']} | <b>Age:</b> {player['age']} Y/O</p>
                         <div style="text-align: center; margin-bottom: 12px;">
                             <span class="bio-tag">Pos: {player['position']}</span>
                             <span class="bio-tag">Foot: {player['foot']}</span>
                         </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-                    
-                    if player["sofa_link"]:
-                        st.link_button("SofaScore Profile", player["sofa_link"], use_container_width=True)
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+                
+                if player["sofa_link"]:
+                    st.link_button("SofaScore Profile", player["sofa_link"], use_container_width=True)
 
-                    if st.button("View Analysis", key=f"select_{player['name']}", use_container_width=True):
-                        st.session_state.selected_player_name = player["name"]
-                        st.session_state.active_filter = "Passes"
-                        st.session_state.selected_video_url = None
-                        st.session_state.selected_video_title = ""
-                        st.rerun()
+                if st.button("View Analysis", key=f"select_{player['name']}", use_container_width=True):
+                    st.session_state.selected_player_name = player["name"]
+                    st.session_state.active_filter = "Passes"
+                    st.session_state.selected_video_url = None
+                    st.session_state.selected_video_title = ""
+                    st.rerun()
 
         st.markdown("---")
         
@@ -386,27 +386,25 @@ with tab2:
         for idx, member in enumerate(staff_members):
             col_target = staff_cols[idx % 3]
             with col_target:
-                with st.container(border=True):
-                    img = member.get("image_url") if member.get("image_url") else "https://via.placeholder.com/150"
-                    st.markdown(
-                        f"""
+                img = member.get("image_url") if member.get("image_url") else "https://via.placeholder.com/150"
+                
+                # Glowing Staff Card Container
+                st.markdown(
+                    f"""
+                    <div class="glowing-card">
                         <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 10px;">
                             <img src="{img}" style="width: 110px; height: 110px; border-radius: 50%; object-fit: cover; border: 3px solid #10B981;">
                         </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-                    st.markdown(f"<h3 style='text-align: center; margin-bottom: 0px;'>{member['name']}</h3>", unsafe_allow_html=True)
-                    st.markdown(f"<p style='text-align: center; color: #10B981; font-weight: bold;'>{member['role']}</p>", unsafe_allow_html=True)
-                    
-                    if member.get("bio"):
-                        st.write(f"*{member['bio']}*")
-                    
-                    st.markdown("---")
-                    if member.get("email"):
-                        st.write(f"📧 **Email:** {member['email']}")
-                    if member.get("phone"):
-                        st.write(f"📞 **Phone:** {member['phone']}")
+                        <h3 style="text-align: center; margin-bottom: 0px;">{member['name']}</h3>
+                        <p style="text-align: center; color: #10B981; font-weight: bold;">{member['role']}</p>
+                        <p style="font-style: italic; margin-top: 5px;">{member.get('bio', '')}</p>
+                        <hr style="border-color: #334155; margin: 10px 0;">
+                        <p style="margin: 3px 0;">📧 <b>Email:</b> {member.get('email', 'N/A')}</p>
+                        <p style="margin: 3px 0;">📞 <b>Phone:</b> {member.get('phone', 'N/A')}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
     else:
         st.info("No staff members added yet. Add staff details from the Analyst Control Panel.")
 
