@@ -5,28 +5,40 @@ from supabase import create_client, Client
 # 1. Page Configuration
 st.set_page_config(layout="wide", page_title="TootScouting Media Center")
 
-# Custom CSS for Neon Green Glow Effect on Hover
+# Custom CSS for Neon Green Glow Effect on Hover (Cards & ALL Buttons)
 st.markdown("""
     <style>
-    /* Styling Streamlit Buttons */
-    div.stButton > button {
+    /* 1. UNIVERSAL BUTTON STYLING WITH NEON GREEN GLOW ON HOVER */
+    div.stButton > button, div.stFormSubmitButton > button, a[data-testid="stHeaderNavigateButton"] {
         white-space: nowrap !important;
         padding: 10px 18px !important;
         font-weight: 600 !important;
         border-radius: 8px !important;
-        transition: all 0.3s ease !important;
+        transition: all 0.35s ease-in-out !important;
+        background-color: #1E293B !important;
+        color: #F8FAFC !important;
+        border: 1px solid #334155 !important;
     }
     
+    /* Active / Primary Button Style */
     div.stButton > button[kind="primary"] {
         background-color: #10B981 !important;
         color: white !important;
         border: 1px solid #10B981 !important;
-        box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3) !important;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
     }
     
+    /* ALL BUTTONS HOVER EFFECT (GREEN GLOW) */
+    div.stButton > button:hover, div.stFormSubmitButton > button:hover {
+        border-color: #10B981 !important;
+        color: #10B981 !important;
+        box-shadow: 0 0 18px rgba(16, 185, 129, 0.75), 0 0 5px rgba(16, 185, 129, 0.9) !important;
+        transform: translateY(-2px) !important;
+    }
+
     div.stButton > button[kind="primary"]:hover {
+        color: white !important;
         background-color: #059669 !important;
-        border-color: #059669 !important;
     }
     
     /* Player Bio Tags */
