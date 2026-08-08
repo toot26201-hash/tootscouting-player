@@ -81,6 +81,7 @@ TACTICAL_CATEGORIES = [
     "Ground Duels", 
     "Aerial Duels", 
     "Tackles",          # التاكلز
+    "Interceptions",    # الاعتراضات / قطع الكرات
     "Pressing", 
     "Recoveries", 
     "Clearances", 
