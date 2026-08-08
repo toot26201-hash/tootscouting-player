@@ -84,6 +84,7 @@ TACTICAL_CATEGORIES = [
     "Shots", 
     "Movement", 
     "Dribbles", 
+    "1v1",              # المواجهات الفردية
     "Ball Carrying", 
     "Ball Retention", 
     "Crosses", 
