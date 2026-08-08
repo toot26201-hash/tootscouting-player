@@ -52,7 +52,16 @@ def get_supabase_client() -> Client:
 
 supabase = get_supabase_client()
 
-# Helpers
+# Smart function to process Google Drive direct Image URLs
+def process_google_drive_image(url):
+    if url and "drive.google.com" in url:
+        match = re.search(r'/d/([^/]+)', url) or re.search(r'id=([^&]+)', url)
+        if match:
+            file_id = match.group(1)
+            return f"https://lh3.googleusercontent.com/d/{file_id}"
+    return url
+
+# Helpers for embeds
 def process_google_drive_embed(url):
     if url and "drive.google.com" in url:
         match = re.search(r'/d/([^/]+)', url)
@@ -75,17 +84,17 @@ TACTICAL_CATEGORIES = [
     "Shots", 
     "Movement", 
     "Dribbles", 
-    "Ball Carrying",    # حمل الكرة
-    "Ball Retention",   # حماية الكرة
+    "Ball Carrying", 
+    "Ball Retention", 
     "Crosses", 
     "Ground Duels", 
     "Aerial Duels", 
-    "Tackles",          # التاكلز
-    "Interceptions",    # الاعتراضات / قطع الكرات
+    "Tackles", 
+    "Interceptions", 
     "Pressing", 
     "Recoveries", 
     "Clearances", 
-    "Throw-ins",        # الثرو إن / رميات التماس
+    "Throw-ins", 
     "Fouls Drawn", 
     "Fouls Committed", 
     "Corners", 
@@ -101,15 +110,18 @@ def add_video_smart(player_name, player_image, player_club, player_age, sofa_lin
         except (ValueError, TypeError):
             p_age = 20
             
+        cleaned_image = process_google_drive_image(player_image.strip()) if player_image else ""
+        cleaned_radar = process_google_drive_image(radar_image.strip()) if radar_image else ""
+        
         player_data = {
             "player_name": p_name,
-            "player_image": str(player_image).strip() if player_image else "",
+            "player_image": cleaned_image,
             "player_club": str(player_club).strip() if player_club else "",
             "player_age": p_age,
             "sofa_link": str(sofa_link).strip() if sofa_link else "",
             "position": str(position).strip() if position else "N/A",
             "preferred_foot": str(preferred_foot).strip() if preferred_foot else "Both",
-            "radar_image": str(radar_image).strip() if radar_image else "",
+            "radar_image": cleaned_radar,
             "pdf_report_url": str(pdf_report_url).strip() if pdf_report_url else ""
         }
         
@@ -175,12 +187,13 @@ def delete_video_by_id(video_id):
 # Staff Database Operations
 def add_staff_member(name, role, email, phone, image_url, bio):
     try:
+        cleaned_staff_img = process_google_drive_image(image_url.strip()) if image_url else ""
         staff_data = {
             "name": str(name).strip(),
             "role": str(role).strip(),
             "email": str(email).strip() if email else "",
             "phone": str(phone).strip() if phone else "",
-            "image_url": str(image_url).strip() if image_url else "",
+            "image_url": cleaned_staff_img,
             "bio": str(bio).strip() if bio else ""
         }
         supabase.table("staff").insert(staff_data).execute()
@@ -328,7 +341,7 @@ with tab1:
             st.subheader(f"Radar Chart Profile - {selected_player_obj['name']}")
             radar_img = selected_player_obj.get("radar_image")
             if radar_img:
-                st.image(radar_img, use_column_width=True, caption=f"Performance Radar for {selected_player_obj['name']}")
+                st.image(radar_img, use_container_width=True, caption=f"Performance Radar for {selected_player_obj['name']}")
             else:
                 st.info("No Radar Chart image uploaded for this player yet.")
 
